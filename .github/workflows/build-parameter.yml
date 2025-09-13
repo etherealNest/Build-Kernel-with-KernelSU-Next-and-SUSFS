@@ -64,6 +64,11 @@ on:
           - manual
           - matrix
         default: 'manual'
+      create_release:
+        description: 'Create a release after matrix build?'
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   # Мануальная сборка с пользовательскими параметрами
@@ -102,3 +107,50 @@ jobs:
       pixel-source-branch: 'android-gs-shusky-6.1-android16'
       aosp-spoofing: 'android14-6.1-2025-05_r8'
       hooks_type: ${{ matrix.hooks_type }}
+
+  create-release:
+    name: Create Release
+    if: github.event.inputs.run_type == 'matrix' && github.event.inputs.create_release == true
+    needs: build-kernel-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir release_assets
+          cd artifacts
+
+          find . -type f \( -name '*.zip' -o -name '*.gz' \) -exec mv {} ../release_assets/ \;
+
+          cd ..
+          echo "Files for release:"
+          ls -lR release_assets
+
+      - name: Create Release
+        id: create_release
+        run: |
+          set -e
+          TAG_NAME="build-${{ github.event.inputs.device }}-${{ github.run_id }}"
+          RELEASE_NAME="Kernel for ${{ github.event.inputs.device }} - Build #${{ github.run_number }}"
+          
+          BODY="Automated kernel build release from matrix.
+          - **Device**: ${{ github.event.inputs.device }}
+          - **Pixel Source Branch**: ${{ github.event.inputs.pixel-source-branch }}
+          - **AOSP Spoofing Tag**: ${{ github.event.inputs.aosp-spoofing || 'N/A' }}
+          "
+
+          gh release create "$TAG_NAME" --title "$RELEASE_NAME" --notes "$BODY"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets
+        run: gh release upload ${{ steps.create_release.outputs.tag_name }} release_assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
