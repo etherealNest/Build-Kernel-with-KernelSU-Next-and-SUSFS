@@ -491,19 +491,19 @@ jobs:
       - name: Upload AnyKernel ZIP Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "AK3_${env.KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${env.KSUVER}${env.SUSFS_STAT}${{ inputs.hooks_type }}"
+          name: "AK3_${{ env.KERNEL_VER }}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${{ env.KSUVER }}${{ env.SUSFS_STAT }}${{ inputs.hooks_type }}"
           path: AK3*.zip
 
       - name: Upload boot.img Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "boot_${env.KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${env.KSUVER}${env.SUSFS_STAT}${{ inputs.hooks_type }}"
+          name: "boot_${{ env.KERNEL_VER }}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${{ env.KSUVER }}${{ env.SUSFS_STAT }}${{ inputs.hooks_type }}"
           path: boot_*.img.gz
 
 #      - name: Upload vendor_kernel_boot.img Artifact
 #        uses: actions/upload-artifact@v4
 #        with:
-#          name: vendor_kernel_boot_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}${{ inputs.hooks_type }}.img
+#          name: "vendor_kernel_boot_${{ env.KERNEL_VER }}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${{ env.KSUVER }}${{ env.SUSFS_STAT }}${{ inputs.hooks_type }}"
 #          path: vendor_kernel_boot_*.img.gz
 
 #      - name: Start VS Code if fail build
