@@ -36,6 +36,13 @@ jobs:
   build-pixel-kernel:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      KERNEL_VER: ''
+      KSUVER: ''
+      SUSFS_STAT: ''
+      ZIP_NAME: ''
+      BOOT_NAME: ''
+      VENDOR_NAME: ''
 
     steps:
       - name: Checkout Repository
@@ -420,11 +427,14 @@ jobs:
         working-directory: AnyKernel3
         run: |
           SUSFS_STAT="${{ inputs.susfs == 'true' && '_SUSFS-v1.5.9' || '' }}"
-          echo "SUSFS_STAT=${SUSFS_STAT}" >> $GITHUB_ENV
+          echo "SUSFS_STAT=$SUSFS_STAT" >> $GITHUB_ENV
 
-          ZIP_NAME="AK3_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}${{ inputs.hooks_type }}.zip"
+          ZIP_NAME="AK3_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}_${{ inputs.hooks_type }}.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
+
+          # export ZIP_NAME for later steps
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Build boot.img and vendor_kernel_boot.img
         working-directory: FilesForImg
@@ -444,6 +454,12 @@ jobs:
           echo "Preparing workspace..."
           mkdir -p "$OUTPUT_DIR" "$TMP_DIR"
 
+          # Формируем имена файлов для экспорта
+          BOOT_NAME="boot_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}_${{ inputs.hooks_type }}.img"
+          VENDOR_NAME="vendor_kernel_boot_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}_${{ inputs.hooks_type }}.img"
+          echo "BOOT_NAME=$BOOT_NAME" >> $GITHUB_ENV
+          echo "VENDOR_NAME=$VENDOR_NAME" >> $GITHUB_ENV
+
           # Пересборка boot.img
           echo "==> Repacking boot.img..."
 
@@ -451,8 +467,8 @@ jobs:
 
           "$MAGISKBOOT" unpack "$BASE_DIR/$ASSETS_DIR/boot.img"
           cp "$BASE_DIR/$ASSETS_DIR/Image.lz4" kernel
-          "$MAGISKBOOT" repack "$BASE_DIR/$ASSETS_DIR/boot.img" "$BASE_DIR/$OUTPUT_DIR/boot_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}${{ inputs.hooks_type }}.img"
-          echo "boot_KernelSU-Next-v${KSUVER}_SUSFS.img created."
+          "$MAGISKBOOT" repack "$BASE_DIR/$ASSETS_DIR/boot.img" "$BASE_DIR/$OUTPUT_DIR/$BOOT_NAME"
+          echo "$BOOT_NAME created."
 
           # Возвращаемся в основную директорию проекта
           cd "$BASE_DIR"
@@ -466,8 +482,8 @@ jobs:
 
           "$MAGISKBOOT" unpack "$BASE_DIR/$ASSETS_DIR/vendor_kernel_boot.img"
           cp "$BASE_DIR/$ASSETS_DIR/dtb" dtb
-          "$MAGISKBOOT" repack "$BASE_DIR/$ASSETS_DIR/vendor_kernel_boot.img" "$BASE_DIR/$OUTPUT_DIR/vendor_kernel_boot_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}${{ inputs.hooks_type }}.img"
-          echo "vendor_kernel_boot_KernelSU-Next-v${KSUVER}_SUSFS.img created."
+          "$MAGISKBOOT" repack "$BASE_DIR/$ASSETS_DIR/vendor_kernel_boot.img" "$BASE_DIR/$OUTPUT_DIR/$VENDOR_NAME"
+          echo "$VENDOR_NAME created."
 
           # Возвращаемся в основную директорию проекта
           cd "$BASE_DIR"
@@ -491,20 +507,32 @@ jobs:
       - name: Upload AnyKernel ZIP Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "AK3_${{ env.KERNEL_VER }}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${{ env.KSUVER }}${{ env.SUSFS_STAT }}${{ inputs.hooks_type }}"
+          name: ${{ env.ZIP_NAME }}
           path: AK3*.zip
+          if-no-files-found: warn
+          compression-level: 6
+          overwrite: false
+          include-hidden-files: false
 
       - name: Upload boot.img Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "boot_${{ env.KERNEL_VER }}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${{ env.KSUVER }}${{ env.SUSFS_STAT }}${{ inputs.hooks_type }}"
+          name: ${{ env.BOOT_NAME }}
           path: boot_*.img.gz
+          if-no-files-found: warn
+          compression-level: 6
+          overwrite: false
+          include-hidden-files: false
 
 #      - name: Upload vendor_kernel_boot.img Artifact
 #        uses: actions/upload-artifact@v4
 #        with:
-#          name: "vendor_kernel_boot_${{ env.KERNEL_VER }}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${{ env.KSUVER }}${{ env.SUSFS_STAT }}${{ inputs.hooks_type }}"
+#          name: ${{ env.VENDOR_NAME }}
 #          path: vendor_kernel_boot_*.img.gz
+#          if-no-files-found: warn
+#          compression-level: 6
+#          overwrite: false
+#          include-hidden-files: false
 
 #      - name: Start VS Code if fail build
 #        if: failure()      
