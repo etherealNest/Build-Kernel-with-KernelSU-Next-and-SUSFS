@@ -56,8 +56,8 @@ on:
         required: true
         type: boolean
         default: true
-      debug_module_list:
-        description: 'Build Debug'
+      get_rej:
+        description: 'Get .rej?'
         required: false
         type: boolean
         default: false
@@ -76,7 +76,7 @@ jobs:
       device: ${{ github.event.inputs.device }}
       ksu_type: ${{ github.event.inputs.ksu_type }}
       susfs: ${{ github.event.inputs.susfs }}
-      debug_module_list: ${{ github.event.inputs.debug_module_list }}
+      get_rej: ${{ github.event.inputs.get_rej }}
       stock_ota: ${{ github.event.inputs.stock_ota }}
       pixel-source-branch: ${{ github.event.inputs.pixel-source-branch }}
       aosp-spoofing: ${{ github.event.inputs.aosp-spoofing }}
@@ -99,7 +99,7 @@ jobs:
       device: 'shusky'
       ksu_type: ${{ matrix.ksu_type }}
       susfs: ${{ matrix.susfs }}
-      debug_module_list: false
+      get_rej: false
       stock_ota: 'shiba-bp3a.250905.014-factory-f927be20.zip'
       pixel-source-branch: 'android-gs-shusky-6.1-android16'
       aosp-spoofing: 'android14-6.1-2025-05_r8'

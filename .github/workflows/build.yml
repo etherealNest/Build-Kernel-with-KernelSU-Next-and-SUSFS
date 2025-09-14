@@ -12,7 +12,7 @@ on:
       susfs:
         required: true
         type: string
-      debug_module_list:
+      get_rej:
         required: false
         type: string
       stock_ota:
@@ -172,10 +172,6 @@ jobs:
           PATCH_FILE=".github/workflows/Patches/fix_${{ inputs.device }}_BUILD.bazel.patch"
           TARGET_DIR="kernel_source/private/devices/google/${{ inputs.device }}"
 
-          if [ ${{ inputs.debug_module_list }} == 'true' ]; then
-            sed -i '/^+    module_outs = ZUMA_MODULE_OUTS + \[$/,/^+    \],$/{/^+    module_outs = ZUMA_MODULE_OUTS + \[$/b;/^+    \],/b;d}' ".github/workflows/Patches/fix_${{ inputs.device }}_BUILD.bazel.patch"
-          fi
-
           patch -p1 --forward -d "$TARGET_DIR" < "$PATCH_FILE"
 
           echo "Build system patch applied successfully."
@@ -224,7 +220,7 @@ jobs:
           cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
 
-          if [[ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.debug_module_list }}" == 'true' ]]; then
+          if [[ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.get_rej }}" == 'true' ]]; then
             # Применяю несколько мелких патчей к файлам к которым не мог применить основной патч.
             echo "---> STARTED fix for apk_sign.c <---"
             cp ../../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch ./
