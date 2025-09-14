@@ -80,35 +80,13 @@ jobs:
           git -c credential.helper= clone https://github.com/etherealNest/kernel_patches.git
           git -c credential.helper= clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
 
-      - name: Build KPM tools for SukiSU
+      - name: Build KPM Patcher
         if: ${{ inputs.ksu_type == 'suki-su' }}
+        working-directory: SukiSU_KernelPatch_patch/patch
         run: |
-          echo "Building KPM tools..."
-          mkdir -p kpm_tools
-          
-          # Download and setup cross-compiler for kpimg
-          curl -o arm-gnu-toolchain.tar.xz https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz
-          tar -xf arm-gnu-toolchain.tar.xz
-          
-          # Add toolchain to PATH
-          echo "$GITHUB_WORKSPACE/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf/bin" >> $GITHUB_PATH
-
-          # Build kpimg
-          cd SukiSU_KernelPatch_patch/kernel
-          export TARGET_COMPILE=aarch64-none-elf-
-          make ANDROID=1 CC=${TARGET_COMPILE}gcc
-          cp kpimg ../../kpm_tools/
-          make clean
-          cd ../../
-
-          # Build kptools
-          cd SukiSU_KernelPatch_patch/tools
+          echo "Building KPM patcher tool..."
           make
-          cp kptools ../../kpm_tools/
-          cd ../../
-          
-          echo "KPM tools built successfully."
-          ls -l kpm_tools
+          cp patch $GITHUB_WORKSPACE/
 
       - name: Getting magiskboot tool
         run: |
@@ -463,11 +441,13 @@ jobs:
         run: |
           echo "Patching kernel with KPM..."
           ARTIFACT_DIR="kernel_source/out/${{ inputs.device }}/dist"
+          cp $GITHUB_WORKSPACE/patch $ARTIFACT_DIR/
           cd $ARTIFACT_DIR
           
-          # Use kptools to patch the kernel image
-          $GITHUB_WORKSPACE/kpm_tools/kptools -p -i Image.lz4 -k $GITHUB_WORKSPACE/kpm_tools/kpimg -o Image.lz4.kpm
-          mv Image.lz4.kpm Image.lz4
+          # The patcher expects the kernel image to be named "Image"
+          mv Image.lz4 Image
+          ./patch
+          mv oImage Image.lz4
           
           echo "Kernel patched successfully with KPM."
           ls -l
