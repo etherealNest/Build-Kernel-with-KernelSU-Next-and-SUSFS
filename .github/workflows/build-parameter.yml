@@ -6,11 +6,15 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      device:
-        description: 'Device codename'
+
+      run_type:
+        description: 'Run Type'
         required: true
-        type: string
-        default: 'shusky'
+        type: choice
+        options:
+          - manual
+          - matrix
+        default: 'manual'
       ksu_type:
         description: 'KernelSU type'
         required: true
@@ -19,6 +23,34 @@ on:
           - ksu-next
           - ksu
         default: 'ksu-next'
+      hooks_type:
+        description: 'Hooks Type'
+        required: true
+        type: choice
+        options:
+          - manual
+          - kprobes
+        default: kprobes
+      device:
+        description: 'Device codename'
+        required: true
+        type: string
+        default: 'shusky'
+      stock_ota:
+        description: 'Stock Full OTA'
+        required: true
+        type: string
+        default: shiba-bp3a.250905.014-factory-f927be20.zip
+      pixel-source-branch:
+        description: 'Pixel Source Branch'
+        required: true
+        type: string
+        default: android-gs-shusky-6.1-android16
+      aosp-spoofing:
+        description: 'Enable AOSP Spoofing?'
+        required: false
+        type: string
+        default: android14-6.1-2025-05_r8
       susfs:
         description: 'Enable SUSFS?'
         required: true
@@ -29,41 +61,6 @@ on:
         required: false
         type: boolean
         default: false
-      stock_ota:
-        description: 'Stock Full OTA'
-        required: true
-        type: choice
-        options:
-          - shiba-bp3a.250905.014-factory-f927be20.zip
-        default: shiba-bp3a.250905.014-factory-f927be20.zip
-      pixel-source-branch:
-        description: 'Pixel Source Branch'
-        required: true
-        type: choice
-        options:
-          - android-gs-shusky-6.1-android16
-        default: android-gs-shusky-6.1-android16
-      aosp-spoofing:
-        description: 'Enable AOSP Spoofing?'
-        required: false
-        type: string
-        default: android14-6.1-2025-05_r8
-      hooks_type:
-        description: 'Hooks Type'
-        required: true
-        type: choice
-        options:
-          - manual
-          - kprobes
-        default: kprobes
-      run_type:
-        description: 'Run Type'
-        required: true
-        type: choice
-        options:
-          - manual
-          - matrix
-        default: 'manual'
       create_release:
         description: 'Create a release after matrix build?'
         required: true
