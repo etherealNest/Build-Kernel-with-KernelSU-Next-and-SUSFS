@@ -78,6 +78,34 @@ jobs:
           git clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
           git clone https://github.com/etherealNest/kernel_patches.git
+          git clone https://github.com/Suki-Network/SukiSU_KernelPatch_patch.git
+
+      - name: Build KPM tools for SukiSU
+        if: ${{ inputs.ksu_type == 'suki-su' }}
+        run: |
+          echo "Building KPM tools..."
+          mkdir -p kpm_tools
+          
+          # Download and setup cross-compiler for kpimg
+          curl -o arm-gnu-toolchain.tar.xz https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz
+          tar -xf arm-gnu-toolchain.tar.xz
+          
+          # Build kpimg
+          cd SukiSU_KernelPatch_patch/kernel
+          export TARGET_COMPILE=$GITHUB_WORKSPACE/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
+          make ANDROID=1
+          cp kpimg ../../kpm_tools/
+          make clean
+          cd ../../
+
+          # Build kptools
+          cd SukiSU_KernelPatch_patch/tools
+          make
+          cp kptools ../../kpm_tools/
+          cd ../../
+          
+          echo "KPM tools built successfully."
+          ls -l kpm_tools
 
       - name: Getting magiskboot tool
         run: |
@@ -426,6 +454,21 @@ jobs:
         working-directory: kernel_source
         run: |
           ./build_${{ inputs.device }}.sh --kernel_package=@//aosp
+
+      - name: Patch Kernel with KPM for SukiSU
+        if: ${{ inputs.ksu_type == 'suki-su' }}
+        run: |
+          echo "Patching kernel with KPM..."
+          ARTIFACT_DIR="kernel_source/out/${{ inputs.device }}/dist"
+          cd $ARTIFACT_DIR
+          
+          # Use kptools to patch the kernel image
+          $GITHUB_WORKSPACE/kpm_tools/kptools -p -i Image.lz4 -k $GITHUB_WORKSPACE/kpm_tools/kpimg -o Image.lz4.kpm
+          mv Image.lz4.kpm Image.lz4
+          
+          echo "Kernel patched successfully with KPM."
+          ls -l
+          cd $GITHUB_WORKSPACE
 
       - name: Prepare Artifacts for Packaging
         run: |
