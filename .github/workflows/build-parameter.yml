@@ -57,12 +57,7 @@ on:
         type: boolean
         default: true
       debug_module_list:
-        description: 'Build Debug Module List?'
-        required: false
-        type: boolean
-        default: false
-      disable_susfs_patches:
-        description: 'Disable SUSFS patches?'
+        description: 'Build Debug'
         required: false
         type: boolean
         default: false

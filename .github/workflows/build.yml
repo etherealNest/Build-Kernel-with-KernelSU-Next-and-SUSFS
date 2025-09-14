@@ -224,7 +224,7 @@ jobs:
           cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
 
-          if [[ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.disable_susfs_patches }}" == 'true' ]]; then
+          if [[ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.debug_module_list }}" == 'true' ]]; then
             # Применяю несколько мелких патчей к файлам к которым не мог применить основной патч.
             echo "---> STARTED fix for apk_sign.c <---"
             cp ../../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch ./
