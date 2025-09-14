@@ -261,7 +261,7 @@ jobs:
           # KernelSU Next определяет свою версию по количеству коммитов.
 
           # Базовая версия для подсчета
-          if [ "${{ inputs.ksu_type }}" == "ksu-next" || 'ksu' ]; then
+          if [ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.ksu_type }}" == "ksu" ]; then
             BASE_VERSION=10200
           elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
             BASE_VERSION=10700
@@ -298,7 +298,7 @@ jobs:
           elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
             sed -i "57s/${STATIC_VERSION}/${KSUVER}/" Makefile
           fi
-          
+
           echo "Makefile patched successfully."
 
       - name: Apply Hooks Patches
