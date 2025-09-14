@@ -61,6 +61,11 @@ on:
         required: false
         type: boolean
         default: false
+      disable_susfs_patches:
+        description: 'Disable SUSFS patches?'
+        required: false
+        type: boolean
+        default: false
       create_release:
         description: 'Create a release after matrix build?'
         required: true
