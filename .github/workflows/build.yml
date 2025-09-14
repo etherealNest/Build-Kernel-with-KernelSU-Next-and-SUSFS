@@ -96,7 +96,7 @@ jobs:
           # Build kpimg
           cd SukiSU_KernelPatch_patch/kernel
           export TARGET_COMPILE=aarch64-none-elf-
-          make ANDROID=1
+          make ANDROID=1 CC=${TARGET_COMPILE}gcc
           cp kpimg ../../kpm_tools/
           make clean
           cd ../../
