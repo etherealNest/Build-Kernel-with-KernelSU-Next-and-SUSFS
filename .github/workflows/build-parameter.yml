@@ -110,7 +110,7 @@ jobs:
 
   create-release:
     name: Create Release
-    if: github.event.inputs.run_type == 'matrix' && github.event.inputs.create_release == true
+    if: github.event.inputs.run_type == 'matrix' && github.event.inputs.create_release == 'true'
     needs: build-kernel-matrix
     runs-on: ubuntu-latest
     permissions:
