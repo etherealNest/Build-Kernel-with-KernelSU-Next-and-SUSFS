@@ -22,6 +22,7 @@ on:
         options:
           - ksu-next
           - ksu
+          - suki-su
         default: 'ksu-next'
       hooks_type:
         description: 'Hooks Type'
@@ -81,7 +82,7 @@ jobs:
     if: github.event.inputs.run_type == 'matrix'
     strategy:
       matrix:
-        ksu_type: [ksu-next, ksu]
+        ksu_type: [ksu-next, ksu, suki-su]
         susfs: [true, false]
         hooks_type: [manual, kprobes]
         exclude:

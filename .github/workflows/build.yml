@@ -188,10 +188,13 @@ jobs:
           elif [ "${{ inputs.ksu_type}}" == "ksu" ]; then
             echo "Adding KernelSU"
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+          elif [ "${{ inputs.ksu_type}}" == "suki-su" ]; then
+            echo "Adding SukiSU-Ultra"
+            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
           fi
 
       - name: Apply SUSFS Patches
-        if: ${{ inputs.susfs == 'true' }}
+        if: ${{ inputs.susfs == 'true' && inputs.ksu_type != 'suki-su' }}
         working-directory: kernel_source/aosp
         run: |          
           echo "Applying SUSFS patches..."
@@ -251,6 +254,8 @@ jobs:
             cd ./KernelSU-Next
           elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
             cd ./KernelSU
+          elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+            cd ./SukiSU-Ultra
           fi
 
           # KernelSU Next определяет свою версию по количеству коммитов.
@@ -265,6 +270,7 @@ jobs:
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
           
       - name: Force KernelSU Driver Version
+        if: ${{ inputs.ksu_type != 'suki-su' }}
         working-directory: kernel_source/aosp
         run: |
           echo "Forcing KSU Driver Version to ${KSUVER} in Makefile..."
@@ -312,6 +318,9 @@ jobs:
           if [ "${{ inputs.hooks_type }}" == "kprobes" ]; then
             if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
               echo "CONFIG_KSU_KPROBES_HOOK=y" >> "${DEFCONFIG_PATH}"
+            elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+              echo "# CONFIG_KSU_MANUAL_HOOK is not set" >> "${DEFCONFIG_PATH}"
+              echo "CONFIG_KPM=y" >> "${DEFCONFIG_PATH}"
             fi
             echo "CONFIG_KPROBES=y" >> "${DEFCONFIG_PATH}"
             echo "CONFIG_HAVE_KPROBES=y" >> "${DEFCONFIG_PATH}"
@@ -321,7 +330,9 @@ jobs:
           fi
 
           # Mountify Support
-          echo "CONFIG_OVERLAY_FS=y" >> "${DEFCONFIG_PATH}"
+          if [ "${{ inputs.ksu_type }}" == "ksu" ]; then
+            echo "CONFIG_OVERLAY_FS=y" >> "${DEFCONFIG_PATH}"
+          fi
           echo "CONFIG_TMPFS_XATTR=y" >> "${DEFCONFIG_PATH}"
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> "${DEFCONFIG_PATH}"
 
