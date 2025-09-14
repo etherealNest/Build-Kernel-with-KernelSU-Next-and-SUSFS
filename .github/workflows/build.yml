@@ -255,7 +255,7 @@ jobs:
           elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
             cd ./KernelSU
           elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
-            cd ./SukiSU-Ultra
+            cd ./KernelSU
           fi
 
           # KernelSU Next определяет свою версию по количеству коммитов.
