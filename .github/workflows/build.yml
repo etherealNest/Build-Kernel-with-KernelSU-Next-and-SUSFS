@@ -364,7 +364,6 @@ jobs:
             
             # SUSFS Advanced Features
             echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "${DEFCONFIG_PATH}"
-            echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> "${DEFCONFIG_PATH}"
             # echo "# CONFIG_KSU_SUSFS_SUS_OVERLAYFS is not set" >> "${DEFCONFIG_PATH}"
             echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "${DEFCONFIG_PATH}"
             echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "${DEFCONFIG_PATH}"
