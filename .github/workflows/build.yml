@@ -194,31 +194,31 @@ jobs:
           fi
 
       - name: Apply SUSFS Patches
-        if: ${{ inputs.susfs == 'true' && inputs.ksu_type != 'suki-su' }}
+        if: ${{ inputs.susfs == 'true' }}
         working-directory: kernel_source/aosp
         run: |          
           echo "Applying SUSFS patches..."
           
-          # Тут будет у нас применяться susfs.
-          # Эта часть должна пройти без проблем.
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
           patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch
           cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           
-          echo "Applying SUSFS patches for KernelSU Next..."
-          # Тут будет интегрировать сам susfs с KernelSU Next
+          if [ "${{ inputs.ksu_type }}" != 'suki-su' ]; then
+            echo "Applying SUSFS patches for KernelSU Next..."
+            # Тут будет интегрировать сам susfs с KernelSU Next
 
-          if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
-            cd ./KernelSU-Next
-          elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
-            cd ./KernelSU
+            if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
+              cd ./KernelSU-Next
+            elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
+              cd ./KernelSU
+            fi
+
+            # Для начала применяю самый основной патч, он ожидаемо должен завершиться с ошибкой.
+            echo "---> Apply main patch <---"
+            cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
+            patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           fi
-
-          # Для начала применяю самый основной патч, он ожидаемо должен завершиться с ошибкой.
-          echo "---> Apply main patch <---"
-          cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch # || true
 
           if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
             # Применяю несколько мелких патчей к файлам к которым не мог применить основной патч.
