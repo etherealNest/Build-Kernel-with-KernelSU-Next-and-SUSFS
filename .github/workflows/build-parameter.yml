@@ -56,11 +56,6 @@ on:
         required: true
         type: boolean
         default: true
-      get_rej:
-        description: 'Get .rej?'
-        required: false
-        type: boolean
-        default: false
       create_release:
         description: 'Create a release after matrix build?'
         required: true
@@ -76,7 +71,6 @@ jobs:
       device: ${{ github.event.inputs.device }}
       ksu_type: ${{ github.event.inputs.ksu_type }}
       susfs: ${{ github.event.inputs.susfs }}
-      get_rej: ${{ github.event.inputs.get_rej }}
       stock_ota: ${{ github.event.inputs.stock_ota }}
       pixel-source-branch: ${{ github.event.inputs.pixel-source-branch }}
       aosp-spoofing: ${{ github.event.inputs.aosp-spoofing }}
@@ -99,7 +93,6 @@ jobs:
       device: 'shusky'
       ksu_type: ${{ matrix.ksu_type }}
       susfs: ${{ matrix.susfs }}
-      get_rej: false
       stock_ota: 'shiba-bp3a.250905.014-factory-f927be20.zip'
       pixel-source-branch: 'android-gs-shusky-6.1-android16'
       aosp-spoofing: 'android14-6.1-2025-05_r8'
