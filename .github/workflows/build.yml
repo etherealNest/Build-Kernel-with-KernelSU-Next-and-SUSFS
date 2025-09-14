@@ -75,10 +75,10 @@ jobs:
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
           # Клонирую репозиторий с патчами, susfs и AK3. 
-          git clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
+          git -c credential.helper= clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
-          git clone https://github.com/etherealNest/kernel_patches.git
-          git clone https://github.com/Suki-Network/SukiSU_KernelPatch_patch.git
+          git -c credential.helper= clone https://github.com/etherealNest/kernel_patches.git
+          git -c credential.helper= clone https://github.com/Suki-Network/SukiSU_KernelPatch_patch.git
 
       - name: Build KPM tools for SukiSU
         if: ${{ inputs.ksu_type == 'suki-su' }}
