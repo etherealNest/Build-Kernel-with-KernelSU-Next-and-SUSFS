@@ -161,6 +161,55 @@ jobs:
 
           echo "Kernel version detected: ${KERNEL_VER}"
 
+      - name: Determine Kernel Build Variables for KPM
+        if: ${{ inputs.ksu_type == 'suki-su' }}
+        run: |
+          echo "Determining ARCH and CROSS_COMPILE for KPM components build..."
+          # Для Pixel-устройств с AOSP GKI ядрами обычно ARCH arm64
+          echo "ARCH=arm64" >> $GITHUB_ENV
+
+          # CROSS_COMPILE обычно имеет вид aarch64-linux-gnu-
+          # Ваш build_${{ inputs.device }}.sh скрипт должен устанавливать правильный тулчейн в PATH.
+          # Если это не так, вам может потребоваться явно указать путь к CROSS_COMPILE (например, /path/to/toolchain/bin/aarch64-linux-gnu-).
+          # Предполагаем стандартный aarch64-linux-gnu-
+          echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
+          
+          echo "Detected ARCH: ${{ env.ARCH }}"
+          echo "Detected CROSS_COMPILE: ${{ env.CROSS_COMPILE }}"
+
+      - name: Build KPM Components (kptools, kpimg)
+        if: ${{ inputs.ksu_type == 'suki-su' }}
+        run: |
+          echo "Building kptools and kpimg for KPM support..."
+          KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
+          KERNEL_SOURCE_PATH="${GITHUB_WORKSPACE}/kernel_source/aosp"
+            
+          # Шаг 1: Сборка kptools [6]
+          echo "--- Building kptools ---"
+          cd "${KPM_REPO_PATH}/tools"
+          make clean
+          make ARCH=${{ env.ARCH }} CROSS_COMPILE=${{ env.CROSS_COMPILE }}
+          if [ $? -ne 0 ]; then
+            echo "Failed to build kptools"
+            exit 1
+          fi
+          cp kptools "${KPM_REPO_PATH}/kptools_exec" # Копируем в корень репозитория KPM для удобства
+            
+          # Шаг 2: Сборка kpimg [6]
+          echo "--- Building kpimg ---"
+          cd "${KPM_REPO_PATH}/kernel"
+          make clean
+          # KERNEL_SOURCE может потребоваться для доступа к заголовкам ядра [7]
+          make ARCH=${{ env.ARCH }} CROSS_COMPILE=${{ env.CROSS_COMPILE }} KERNEL_SOURCE="${KERNEL_SOURCE_PATH}"
+          if [ $? -ne 0 ]; then
+            echo "Failed to build kpimg"
+            exit 1
+          fi
+          cp kpimg "${KPM_REPO_PATH}/kpimg_exec" # Копируем в корень репозитория KPM для удобства
+          echo "KPM components built successfully."
+          ls -l "${KPM_REPO_PATH}/kptools_exec"
+          ls -l "${KPM_REPO_PATH}/kpimg_exec"
+
       - name: Apply Build System Patch
         run: |
           # Патчитм BUILD.bazel чтобы явно заставить систему сборки использовать наши исходники.
@@ -427,6 +476,47 @@ jobs:
         working-directory: kernel_source
         run: |
           ./build_${{ inputs.device }}.sh --kernel_package=@//aosp
+
+      - name: Patch Kernel Image with KPM
+        if: ${{ inputs.ksu_type == 'suki-su' }}
+        run: |
+          echo "Patching kernel image with KPM..."
+          KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
+          ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
+          ORIG_IMAGE="${ARTIFACT_DIR}/Image.lz4"
+          PATCHED_IMAGE="${ARTIFACT_DIR}/Image.lz4.kpm_patched" # Временное имя для патченного образа
+  
+          # Проверяем наличие необходимых файлов
+          if [ ! -f "${KPM_REPO_PATH}/kptools_exec" ]; then
+            echo "Error: kptools executable not found at ${KPM_REPO_PATH}/kptools_exec. Did the 'Build KPM Components' step fail?"
+            exit 1
+          fi
+          if [ ! -f "${KPM_REPO_PATH}/kpimg_exec" ]; then
+            echo "Error: kpimg executable not found at ${KPM_REPO_PATH}/kpimg_exec. Did the 'Build KPM Components' step fail?"
+            exit 1
+          fi
+          if [ ! -f "${ORIG_IMAGE}" ]; then
+            echo "Error: Original kernel image not found at ${ORIG_IMAGE}. Did the 'Build Kernel' step fail?"
+            exit 1
+          fi
+  
+          # Выполняем патчинг образа ядра [10]
+          # **ВАЖНОЕ ПРЕДПОЛОЖЕНИЕ**: Синтаксис команды kptools patch.
+          # Согласно документации [10], kptools "патчит образ ядра путем добавления kpimg в конец образа".
+          # Без исходного кода или подробной документации kptools, предполагаем следующий синтаксис:
+          # kptools <input_image> <kpimg_path> <output_image>
+          # Если этот синтаксис неверен, вам потребуется уточнить его, изучив исходники kptools
+          # или другие примеры использования SukiSU_KernelPatch_patch.
+          "${KPM_REPO_PATH}/kptools_exec" "${ORIG_IMAGE}" "${KPM_REPO_PATH}/kpimg_exec" "${PATCHED_IMAGE}"
+          if [ $? -ne 0 ]; then
+            echo "Failed to patch kernel image with KPM using kptools_exec."
+            exit 1
+          fi
+          
+          # Заменяем оригинальный Image.lz4 на пропатченный
+          mv "${PATCHED_IMAGE}" "${ORIG_IMAGE}"
+          echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
+          ls -l "${ORIG_IMAGE}"
 
       - name: Prepare Artifacts for Packaging
         run: |
