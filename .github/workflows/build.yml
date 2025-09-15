@@ -116,29 +116,32 @@ jobs:
           git -c credential.helper= clone https://github.com/etherealNest/kernel_patches.git
           git -c credential.helper= clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
 
-      - name: Execute SukiSU_KernelPatch_patch build.sh
+      - name: Execute SukiSU_KernelPatch_patch build.sh with patching
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
-          echo "Executing SukiSU_KernelPatch_patch/build.sh with NDK path patching..."
+          echo "Preparing and executing SukiSU_KernelPatch_patch/build.sh..."
           KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
             
-          # Переходим в корень репозитория SukiSU_KernelPatch_patch
+          # --- Патчим SukiSU_KernelPatch_patch/build.sh ---
+          echo "Patching SukiSU_KernelPatch_patch/build.sh for NDK_HOME, ANDROID_NDK, and ANDROID_PLATFORM..."
+          # 1. Заменяем жестко закодированный NDK_HOME на переменную окружения NDK_HOME
+          sed -i 's|export NDK_HOME=.*|export NDK_HOME='"${NDK_HOME}"'|g' "${KPM_REPO_PATH}/build.sh"
+          # 2. Заменяем жестко закодированный ANDROID_NDK на переменную окружения ANDROID_NDK_HOME
+          sed -i 's|export ANDROID_NDK=.*|export ANDROID_NDK='"${ANDROID_NDK_HOME}"'|g' "${KPM_REPO_PATH}/build.sh"
+          # 3. Обновляем ANDROID_PLATFORM с 33 на 34, чтобы соответствовать NDK r26d (макс. 34)
+          sed -i 's|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g' "${KPM_REPO_PATH}/build.sh"
+          
+          # --- Патчим SukiSU_KernelPatch_patch/kernel/Makefile ---
+          # Это ключевое изменение для решения проблемы "Permission denied" / "Error 127"
+          echo "Patching SukiSU_KernelPatch_patch/kernel/Makefile for TARGET_COMPILE..."
+          # Заменяем жестко закодированный путь TARGET_COMPILE на динамический путь NDK_HOME
+          sed -i 's|TARGET_COMPILE=/root/.android/sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin|TARGET_COMPILE='""${NDK_HOME}"/toolchains/llvm/prebuilt/linux-x86_64/bin"''|g' "${KPM_REPO_PATH}/kernel/Makefile"
+          
+          # Делаем build.sh исполняемым
+          chmod +x "${KPM_REPO_PATH}/build.sh"
+          
+          # Переходим в корень репозитория SukiSU_KernelPatch_patch и запускаем модифицированный build.sh
           cd "${KPM_REPO_PATH}"
-
-          # Патчим build.sh для использования динамического NDK_HOME
-          # и корректной версии ANDROID_PLATFORM
-          echo "Patching SukiSU_KernelPatch_patch/build.sh for NDK_HOME and ANDROID_PLATFORM..."
-          # 1. Заменяем жестко закодированный NDK_HOME на переменную окружения
-          sed -i 's|export NDK_HOME=.*|export NDK_HOME='"${NDK_HOME}"'|g' build.sh
-          # 2. Заменяем жестко закодированный ANDROID_NDK на переменную окружения
-          sed -i 's|export ANDROID_NDK=.*|export ANDROID_NDK='"${ANDROID_NDK_HOME}"'|g' build.sh
-          # 3. Обновляем ANDROID_PLATFORM с 33 на 34, чтобы соответствовать NDK r26d
-          sed -i 's|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g' build.sh
-            
-          # Делаем скрипт исполняемым
-          chmod +x build.sh
-
-          # Запускаем модифицированный build.sh
           ./build.sh
           if [ $? -ne 0 ]; then
             echo "SukiSU_KernelPatch_patch/build.sh failed."
