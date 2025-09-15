@@ -332,7 +332,7 @@ jobs:
           # KernelSU Next определяет свою версию по количеству коммитов.
 
           # Базовая версия для подсчета
-          if [ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.ksu_type }}" == "ksu" ]; then
+          if [[ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.ksu_type }}" == "ksu" ]]; then
             BASE_VERSION=10200
           elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
             BASE_VERSION=10700
@@ -501,18 +501,20 @@ jobs:
       - name: Patch Kernel Image with KPM
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
+          set -ex
+
           echo "Patching kernel image with KPM..."
           KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
           ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
-          
-          ORIG_IMAGE_LZ4="${ARTIFACT_DIR}/Image.lz4"             # Исходный сжатый образ
-          ORIG_IMAGE_UNCOMPRESSED="${ARTIFACT_DIR}/Image"       # Путь для декомпрессированного образа
-          PATCHED_IMAGE_UNCOMPRESSED_TMP="${ARTIFACT_DIR}/Image.kpm_tmp" # Временный файл для пропатченного декомпрессированного образа
-          FINAL_PATCHED_IMAGE_LZ4="${ARTIFACT_DIR}/Image.lz4.kpm_patched" # Временный файл для конечного рекомпрессированного образа
-  
+
+          ORIG_IMAGE_LZ4="${ARTIFACT_DIR}/Image.lz4"
+          ORIG_IMAGE_UNCOMPRESSED="${ARTIFACT_DIR}/Image"
+          PATCHED_IMAGE_UNCOMPRESSED_TMP="${ARTIFACT_DIR}/Image.kpm_tmp"
+          FINAL_PATCHED_IMAGE_LZ4="${ARTIFACT_DIR}/Image.lz4.kpm_patched"
+
           KPTOOLS_LINUX="${KPM_REPO_PATH}/patch/res/kptools-linux"
           KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg"
-          
+
           if [ ! -f "${ORIG_IMAGE_LZ4}" ]; then
             echo "Error: Original compressed kernel image not found at ${ORIG_IMAGE_LZ4}. Did the 'Build Kernel' step fail?"
             exit 1
@@ -525,32 +527,32 @@ jobs:
             echo "Error: kpimg executable not found at ${KPIMG_EXEC}. Did SukiSU_KernelPatch_patch/build.sh fail?"
             exit 1
           fi
-  
+
           echo "Decompressing original Image.lz4 to Image..."
           lz4 -d -f "${ORIG_IMAGE_LZ4}" "${ORIG_IMAGE_UNCOMPRESSED}"
           if [ $? -ne 0 ]; then
             echo "Failed to decompress Image.lz4. Ensure lz4 is installed and the file is valid."
             exit 1
           fi
-          
+
           echo "Executing kptools-linux to patch uncompressed kernel image..."
           "${KPTOOLS_LINUX}" -p -i "${ORIG_IMAGE_UNCOMPRESSED}" -k "${KPIMG_EXEC}" -s "SukiSU" -o "${PATCHED_IMAGE_UNCOMPRESSED_TMP}"
           if [ $? -ne 0 ]; then
             echo "Failed to patch uncompressed kernel image with KPM using kptools-linux."
             exit 1
           fi
-          
+
           echo "Recompressing patched image to Image.lz4..."
           lz4 -z -f "${PATCHED_IMAGE_UNCOMPRESSED_TMP}" "${FINAL_PATCHED_IMAGE_LZ4}"
           if [ $? -ne 0 ]; then
             echo "Failed to recompress patched kernel image to Image.lz4."
             exit 1
           fi
-  
+
           echo "Replacing original Image.lz4 with patched and recompressed version."
           mv "${FINAL_PATCHED_IMAGE_LZ4}" "${ORIG_IMAGE_LZ4}"
-          rm -f "${ORIG_IMAGE_UNCOMPRESSED}" "${PATCHED_IMAGE_UNCOMPRESSED_TMP}" # Очищаем временные декомпрессированные файлы
-          
+          rm -f "${ORIG_IMAGE_UNCOMPRESSED}" "${PATCHED_IMAGE_UNCOMPRESSED_TMP}"
+
           echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
           ls -l "${ORIG_IMAGE_LZ4}"
 
