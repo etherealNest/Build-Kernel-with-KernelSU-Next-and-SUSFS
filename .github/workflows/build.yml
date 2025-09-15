@@ -339,7 +339,9 @@ jobs:
           fi
 
           # Считаем коммиты в текущей директории и добавляем к базовой версии
-          KSUVER=$(expr $(git rev-list --count HEAD) + $BASE_VERSION)
+          git fetch origin
+
+          KSUVER=$(expr $(git rev-list --count origin/main) + $BASE_VERSION)
           
           echo "Detected KSUVER: $KSUVER"
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
