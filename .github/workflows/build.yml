@@ -485,7 +485,7 @@ jobs:
           ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
           ORIG_IMAGE="${ARTIFACT_DIR}/Image.lz4"
           PATCHED_IMAGE="${ARTIFACT_DIR}/Image.lz4.kpm_patched" # Временное имя для патченного образа
-  
+
           # Проверяем наличие необходимых файлов
           if [ ! -f "${KPM_REPO_PATH}/kptools_exec" ]; then
             echo "Error: kptools executable not found at ${KPM_REPO_PATH}/kptools_exec. Did the 'Build KPM Components' step fail?"
@@ -499,7 +499,7 @@ jobs:
             echo "Error: Original kernel image not found at ${ORIG_IMAGE}. Did the 'Build Kernel' step fail?"
             exit 1
           fi
-  
+
           # Выполняем патчинг образа ядра [10]
           # **ВАЖНОЕ ПРЕДПОЛОЖЕНИЕ**: Синтаксис команды kptools patch.
           # Согласно документации [10], kptools "патчит образ ядра путем добавления kpimg в конец образа".
@@ -512,7 +512,7 @@ jobs:
             echo "Failed to patch kernel image with KPM using kptools_exec."
             exit 1
           fi
-          
+
           # Заменяем оригинальный Image.lz4 на пропатченный
           mv "${PATCHED_IMAGE}" "${ORIG_IMAGE}"
           echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
@@ -653,10 +653,10 @@ jobs:
 #          overwrite: false
 #          include-hidden-files: false
 
-#      - name: Start VS Code if fail build
-#        if: failure()      
-#        uses: fawazahmed0/action-debug-vscode@main
-#        with:
-#          port: 8080
-#          folder: ${{ github.workspace }}
-#          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start VS Code if fail build
+        if: failure()      
+        uses: fawazahmed0/action-debug-vscode@main
+        with:
+          port: 8080
+          folder: ${{ github.workspace }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
