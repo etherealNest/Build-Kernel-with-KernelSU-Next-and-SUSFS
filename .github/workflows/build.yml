@@ -80,14 +80,6 @@ jobs:
           git -c credential.helper= clone https://github.com/etherealNest/kernel_patches.git
           git -c credential.helper= clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
 
-      - name: Build KPM Patcher
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        working-directory: SukiSU_KernelPatch_patch/patch
-        run: |
-          echo "Building KPM patcher tool..."
-          make
-          cp patch $GITHUB_WORKSPACE/
-
       - name: Getting magiskboot tool
         run: |
           set -e
@@ -435,23 +427,6 @@ jobs:
         working-directory: kernel_source
         run: |
           ./build_${{ inputs.device }}.sh --kernel_package=@//aosp
-
-      - name: Patch Kernel with KPM for SukiSU
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        run: |
-          echo "Patching kernel with KPM..."
-          ARTIFACT_DIR="kernel_source/out/${{ inputs.device }}/dist"
-          cp $GITHUB_WORKSPACE/patch $ARTIFACT_DIR/
-          cd $ARTIFACT_DIR
-          
-          # The patcher expects the kernel image to be named "Image"
-          mv Image.lz4 Image
-          ./patch
-          mv oImage Image.lz4
-          
-          echo "Kernel patched successfully with KPM."
-          ls -l
-          cd $GITHUB_WORKSPACE
 
       - name: Prepare Artifacts for Packaging
         run: |
