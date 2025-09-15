@@ -62,7 +62,7 @@ jobs:
 #          verbose: 'true'                # Enable detailed logging
 
       - name: Install Build Dependencies
-        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++
+        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++ xxd
 
       - name: Install Repo
         run: |
@@ -73,11 +73,11 @@ jobs:
 
       - name: Setup Android NDK
         if: ${{ inputs.ksu_type == 'suki-su' }}
-        id: setup-ndk 
-        uses: nttld/setup-ndk@v1 
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26d # Использование NDK r26d, который поддерживает Android 35
-          add-to-path: false 
+          ndk-version: r26d # Используем NDK r26d для поддержки android-34
+          add-to-path: false
 
       - name: Set NDK_HOME and ANDROID_NDK_HOME Environment Variables
         if: ${{ inputs.ksu_type == 'suki-su' }}
@@ -92,7 +92,7 @@ jobs:
         id: cache-ndk
         uses: actions/cache@v3
         with:
-          path: ${{ steps.setup-ndk.outputs.ndk-path }} 
+          path: ${{ steps.setup-ndk.outputs.ndk-path }}
           key: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-${{ hashFiles('**/build.yml') }}
           restore-keys: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-
 
@@ -116,54 +116,35 @@ jobs:
           git -c credential.helper= clone https://github.com/etherealNest/kernel_patches.git
           git -c credential.helper= clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
 
-      - name: Build KPM Components (kptools-android, kpimg)
+      - name: Execute SukiSU_KernelPatch_patch build.sh
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
-          echo "Building kptools-android and kpimg for KPM support..."
+          echo "Executing SukiSU_KernelPatch_patch/build.sh with NDK path patching..."
           KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
-          KERNEL_SOURCE_PATH="${GITHUB_WORKSPACE}/kernel_source/aosp"
             
-          mkdir -p "${KPM_REPO_PATH}/bin"
+          # Переходим в корень репозитория SukiSU_KernelPatch_patch
+          cd "${KPM_REPO_PATH}"
+
+          # Патчим build.sh для использования динамического NDK_HOME
+          # и корректной версии ANDROID_PLATFORM
+          echo "Patching SukiSU_KernelPatch_patch/build.sh for NDK_HOME and ANDROID_PLATFORM..."
+          # 1. Заменяем жестко закодированный NDK_HOME на переменную окружения
+          sed -i 's|export NDK_HOME=.*|export NDK_HOME='"${NDK_HOME}"'|g' build.sh
+          # 2. Заменяем жестко закодированный ANDROID_NDK на переменную окружения
+          sed -i 's|export ANDROID_NDK=.*|export ANDROID_NDK='"${ANDROID_NDK_HOME}"'|g' build.sh
+          # 3. Обновляем ANDROID_PLATFORM с 33 на 34, чтобы соответствовать NDK r26d
+          sed -i 's|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g' build.sh
             
-          # --- Шаг 1: Сборка kptools-android ---
-          echo "--- Building kptools-android ---"
-          cd "${KPM_REPO_PATH}/tools"
-          rm -rf build 
-          mkdir -p build/android
-          cd build/android
-          
-          cmake \
-            -DCMAKE_TOOLCHAIN_FILE="${NDK_HOME}/build/cmake/android.toolchain.cmake" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DANDROID_PLATFORM=android-34 \ # <--- ИЗМЕНЕНО: теперь используем android-34
-            -DANDROID_ABI=arm64-v8a ../.. 
-          cmake --build .
-          mv kptools "${KPM_REPO_PATH}/bin/kptools-android" 
-          cd "${KPM_REPO_PATH}" 
-          
-          # --- Шаг 2: Сборка kpimg ---
-          echo "--- Building kpimg ---"
-          cd "${KPM_REPO_PATH}/kernel"
-          
-          # УДАЛЕНО: Шаг патчинга Makefile с помощью sed больше не нужен.
-          # Вместо этого, TARGET_COMPILE будет передан как аргумент make.
-          
-          make clean
-          # <--- ИЗМЕНЕНО: Добавляем TARGET_COMPILE в команду make.
-          # Это переопределит 'ifndef TARGET_COMPILE' в Makefile.
-          make ARCH=${{ env.ARCH }} \
-               CROSS_COMPILE=${{ env.CROSS_COMPILE }} \
-               NDK_HOME="${{ env.NDK_HOME }}" \
-               KERNEL_SOURCE="${KERNEL_SOURCE_PATH}" \
-               TARGET_COMPILE="${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" # <--- НОВОЕ: Передаем TARGET_COMPILE
+          # Делаем скрипт исполняемым
+          chmod +x build.sh
+
+          # Запускаем модифицированный build.sh
+          ./build.sh
           if [ $? -ne 0 ]; then
-            echo "Failed to build kpimg"
+            echo "SukiSU_KernelPatch_patch/build.sh failed."
             exit 1
           fi
-          mv kpimg "${KPM_REPO_PATH}/bin/kpimg_exec"
-          echo "KPM components built successfully."
-          ls -l "${KPM_REPO_PATH}/bin/kptools-android"
-          ls -l "${KPM_REPO_PATH}/bin/kpimg_exec"
+          echo "SukiSU_KernelPatch_patch/build.sh executed successfully."
 
       - name: Getting magiskboot tool
         run: |
@@ -570,33 +551,32 @@ jobs:
           ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
           ORIG_IMAGE="${ARTIFACT_DIR}/Image.lz4"
           PATCHED_IMAGE_TMP="${ARTIFACT_DIR}/Image.lz4.kpm_tmp" # Временный файл для пропатченного образа
-
-          KPTOOLS_ANDROID="${KPM_REPO_PATH}/bin/kptools-android"
-          KPIMG_EXEC="${KPM_REPO_PATH}/bin/kpimg_exec"
-
+  
+          # Теперь kptools-android и kpimg находятся в patch/res/
+          KPTOOLS_ANDROID="${KPM_REPO_PATH}/patch/res/kptools-android"
+          KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg" # Имя файла kpimg без _exec
+  
           # Проверяем наличие необходимых файлов
           if [ ! -f "${KPTOOLS_ANDROID}" ]; then
-            echo "Error: kptools-android executable not found at ${KPTOOLS_ANDROID}. Did the 'Build KPM Components' step fail?"
+            echo "Error: kptools-android executable not found at ${KPTOOLS_ANDROID}. Did SukiSU_KernelPatch_patch/build.sh fail?"
             exit 1
           fi
           if [ ! -f "${KPIMG_EXEC}" ]; then
-            echo "Error: kpimg executable not found at ${KPIMG_EXEC}. Did the 'Build KPM Components' step fail?"
+            echo "Error: kpimg executable not found at ${KPIMG_EXEC}. Did SukiSU_KernelPatch_patch/build.sh fail?"
             exit 1
           fi
           if [ ! -f "${ORIG_IMAGE}" ]; then
             echo "Error: Original kernel image not found at ${ORIG_IMAGE}. Did the 'Build Kernel' step fail?"
             exit 1
           fi
-
+  
           # Выполняем патчинг образа ядра
-          # Согласно guide.md [1], kptools патчит образ ядра, добавляя kpimg и изменяя точку входа.
-          # Используем синтаксис: kptools <входной_образ> <путь_к_kpimg> <выходной_образ>
           "${KPTOOLS_ANDROID}" "${ORIG_IMAGE}" "${KPIMG_EXEC}" "${PATCHED_IMAGE_TMP}"
           if [ $? -ne 0 ]; then
             echo "Failed to patch kernel image with KPM using kptools-android."
             exit 1
           fi
-
+  
           # Заменяем оригинальный Image.lz4 на пропатченный
           mv "${PATCHED_IMAGE_TMP}" "${ORIG_IMAGE}"
           echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
