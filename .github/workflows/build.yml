@@ -76,9 +76,9 @@ jobs:
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26d # Используем NDK r26d для поддержки android-34
+          ndk-version: r26d
           add-to-path: false
-
+        
       - name: Set NDK_HOME and ANDROID_NDK_HOME Environment Variables
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
@@ -87,24 +87,15 @@ jobs:
           echo "NDK_HOME set to: ${{ env.NDK_HOME }}"
           echo "ANDROID_NDK_HOME set to: ${{ env.ANDROID_NDK_HOME }}"
 
-      - name: Cache Android NDK (optional but recommended)
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        id: cache-ndk
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.setup-ndk.outputs.ndk-path }}
-          key: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-${{ hashFiles('**/build.yml') }}
-          restore-keys: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-
-
       - name: Determine Kernel Build Variables for KPM
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
           echo "Determining ARCH and CROSS_COMPILE for KPM components build..."
           echo "ARCH=arm64" >> $GITHUB_ENV
-          echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV # NDK r26d toolchain prefix для arm64
+          echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
           echo "Detected ARCH: ${{ env.ARCH }}"
           echo "Detected CROSS_COMPILE: ${{ env.CROSS_COMPILE }}"
-          echo "Detected NDK_HOME: ${{ env.NDK_HOME }}" 
+          echo "Detected NDK_HOME: ${{ env.NDK_HOME }}"
           echo "Detected ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}"
 
       - name: Clone AnyKernel3, KernelPatches and SUSFS
@@ -121,26 +112,17 @@ jobs:
         run: |
           echo "Preparing and executing SukiSU_KernelPatch_patch/build.sh..."
           KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
-            
-          # Патчим SukiSU_KernelPatch_patch/build.sh
+          
           echo "Patching SukiSU_KernelPatch_patch/build.sh for NDK_HOME, ANDROID_NDK, and ANDROID_PLATFORM..."
-          # 1. Заменяем жестко закодированный NDK_HOME на переменную окружения NDK_HOME
-          sed -i 's|export NDK_HOME=.*|export NDK_HOME='"${NDK_HOME}"'|g' "${KPM_REPO_PATH}/build.sh"
-          # 2. Заменяем жестко закодированный ANDROID_NDK на переменную окружения ANDROID_NDK_HOME
-          sed -i 's|export ANDROID_NDK=.*|export ANDROID_NDK='"${ANDROID_NDK_HOME}"'|g' "${KPM_REPO_PATH}/build.sh"
-          # 3. Обновляем ANDROID_PLATFORM с 33 на 34, чтобы соответствовать NDK r26d (макс. 34)
-          sed -i 's|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g' "${KPM_REPO_PATH}/build.sh"
-          
-          # Патчим SukiSU_KernelPatch_patch/kernel/Makefile
-          # Это ключевое изменение для решения проблемы "Permission denied" / "Error 127"
+          sed -i "s|export NDK_HOME=.*|export NDK_HOME=\"${NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
+          sed -i "s|export ANDROID_NDK=.*|export ANDROID_NDK=\"${ANDROID_NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
+          sed -i "s|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g" "${KPM_REPO_PATH}/build.sh"
+
           echo "Patching SukiSU_KernelPatch_patch/kernel/Makefile for TARGET_COMPILE..."
-          # Заменяем жестко закодированный путь TARGET_COMPILE на динамический путь NDK_HOME
-          sed -i 's|TARGET_COMPILE=/root/.android/sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin|TARGET_COMPILE='""${NDK_HOME}"/toolchains/llvm/prebuilt/linux-x86_64/bin"''|g' "${KPM_REPO_PATH}/kernel/Makefile"
+          sed -i "s|TARGET_COMPILE=/root/.android/sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin|TARGET_COMPILE=\"${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin\"|g" "${KPM_REPO_PATH}/kernel/Makefile"
           
-          # Делаем build.sh исполняемым
           chmod +x "${KPM_REPO_PATH}/build.sh"
-          
-          # Переходим в корень репозитория SukiSU_KernelPatch_patch и запускаем модифицированный build.sh
+
           cd "${KPM_REPO_PATH}"
           ./build.sh
           if [ $? -ne 0 ]; then
@@ -553,13 +535,11 @@ jobs:
           KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
           ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
           ORIG_IMAGE="${ARTIFACT_DIR}/Image.lz4"
-          PATCHED_IMAGE_TMP="${ARTIFACT_DIR}/Image.lz4.kpm_tmp" # Временный файл для пропатченного образа
+          PATCHED_IMAGE_TMP="${ARTIFACT_DIR}/Image.lz4.kpm_tmp"
   
-          # Теперь kptools-android и kpimg находятся в patch/res/
           KPTOOLS_ANDROID="${KPM_REPO_PATH}/patch/res/kptools-android"
-          KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg" # Имя файла kpimg без _exec
+          KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg"
   
-          # Проверяем наличие необходимых файлов
           if [ ! -f "${KPTOOLS_ANDROID}" ]; then
             echo "Error: kptools-android executable not found at ${KPTOOLS_ANDROID}. Did SukiSU_KernelPatch_patch/build.sh fail?"
             exit 1
@@ -573,14 +553,12 @@ jobs:
             exit 1
           fi
   
-          # Выполняем патчинг образа ядра
           "${KPTOOLS_ANDROID}" "${ORIG_IMAGE}" "${KPIMG_EXEC}" "${PATCHED_IMAGE_TMP}"
           if [ $? -ne 0 ]; then
             echo "Failed to patch kernel image with KPM using kptools-android."
             exit 1
           fi
   
-          # Заменяем оригинальный Image.lz4 на пропатченный
           mv "${PATCHED_IMAGE_TMP}" "${ORIG_IMAGE}"
           echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
           ls -l "${ORIG_IMAGE}"
