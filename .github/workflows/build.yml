@@ -117,12 +117,15 @@ jobs:
           sed -i "s|export NDK_HOME=.*|export NDK_HOME=\"${NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
           sed -i "s|export ANDROID_NDK=.*|export ANDROID_NDK=\"${ANDROID_NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
           sed -i "s|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g" "${KPM_REPO_PATH}/build.sh"
-
-          echo "Patching SukiSU_KernelPatch_patch/kernel/Makefile for TARGET_COMPILE..."
+          
+          echo "Patching SukiSU_KernelPatch_patch/kernel/Makefile for TARGET_COMPILE and compiler version..."
           sed -i "s|TARGET_COMPILE=/root/.android/sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin|TARGET_COMPILE=\"${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin\"|g" "${KPM_REPO_PATH}/kernel/Makefile"
           
+          # ЭТО НОВОЕ КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Замена версии API в имени компилятора
+          sed -i 's|aarch64-linux-android35-clang|aarch64-linux-android34-clang|g' "${KPM_REPO_PATH}/kernel/Makefile"
+          
           chmod +x "${KPM_REPO_PATH}/build.sh"
-
+          
           cd "${KPM_REPO_PATH}"
           ./build.sh
           if [ $? -ne 0 ]; then
@@ -536,10 +539,10 @@ jobs:
           ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
           ORIG_IMAGE="${ARTIFACT_DIR}/Image.lz4"
           PATCHED_IMAGE_TMP="${ARTIFACT_DIR}/Image.lz4.kpm_tmp"
-  
+
           KPTOOLS_ANDROID="${KPM_REPO_PATH}/patch/res/kptools-android"
           KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg"
-  
+
           if [ ! -f "${KPTOOLS_ANDROID}" ]; then
             echo "Error: kptools-android executable not found at ${KPTOOLS_ANDROID}. Did SukiSU_KernelPatch_patch/build.sh fail?"
             exit 1
@@ -552,13 +555,13 @@ jobs:
             echo "Error: Original kernel image not found at ${ORIG_IMAGE}. Did the 'Build Kernel' step fail?"
             exit 1
           fi
-  
+
           "${KPTOOLS_ANDROID}" "${ORIG_IMAGE}" "${KPIMG_EXEC}" "${PATCHED_IMAGE_TMP}"
           if [ $? -ne 0 ]; then
             echo "Failed to patch kernel image with KPM using kptools-android."
             exit 1
           fi
-  
+
           mv "${PATCHED_IMAGE_TMP}" "${ORIG_IMAGE}"
           echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
           ls -l "${ORIG_IMAGE}"
