@@ -212,10 +212,12 @@ jobs:
             cd ./KernelSU
           fi
 
-          # Для начала применяю самый основной патч, он ожидаемо должен завершиться с ошибкой.
-          echo "---> Apply main patch <---"
-          cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch # || true
+          if [ "${{ inputs.ksu_type }}" == "ksu" ]; then
+            # Для начала применяю самый основной патч, он ожидаемо должен завершиться с ошибкой.
+            echo "---> Apply main patch <---"
+            cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
+            patch -p1 --forward < 10_enable_susfs_for_ksu.patch # || true
+          fi
 
 #          if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
 #            # Применяю несколько мелких патчей к файлам к которым не мог применить основной патч.
