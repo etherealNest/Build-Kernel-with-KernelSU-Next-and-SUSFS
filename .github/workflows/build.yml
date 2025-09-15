@@ -73,19 +73,15 @@ jobs:
 
       - name: Setup Android NDK
         if: ${{ inputs.ksu_type == 'suki-su' }}
-        id: setup-ndk # Добавляем ID для доступа к выходным данным этого действия
-        uses: nttld/setup-ndk@v1 # Используем найденное вами действие 'nttld/setup-ndk'
+        id: setup-ndk 
+        uses: nttld/setup-ndk@v1 
         with:
-          ndk-version: r25c # Соответствует NDK 25.2.9519653, который поддерживает android-33
-          add-to-path: false # Мы будем явно передавать путь к NDK через переменную окружения NDK_HOME
+          ndk-version: r26d # Использование NDK r26d, который поддерживает Android 35
+          add-to-path: false 
 
-      # НОВЫЙ ШАГ: Устанавливаем NDK_HOME и ANDROID_NDK_HOME в переменные окружения GitHub Actions
-      # Это необходимо, потому что SukiSU_KernelPatch_patch/build.sh использует NDK_HOME.
       - name: Set NDK_HOME and ANDROID_NDK_HOME Environment Variables
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
-          # nttld/setup-ndk@v1 выводит путь установки NDK как 'ndk-path'.
-          # Устанавливаем NDK_HOME и ANDROID_NDK_HOME в переменную окружения для всех последующих шагов.
           echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
           echo "NDK_HOME set to: ${{ env.NDK_HOME }}"
@@ -96,9 +92,7 @@ jobs:
         id: cache-ndk
         uses: actions/cache@v3
         with:
-          # Используем выходной путь от действия setup-ndk для кэширования
           path: ${{ steps.setup-ndk.outputs.ndk-path }} 
-          # Добавляем версию NDK в ключ кэша для лучшей изоляции
           key: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-${{ hashFiles('**/build.yml') }}
           restore-keys: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-
 
@@ -107,11 +101,11 @@ jobs:
         run: |
           echo "Determining ARCH and CROSS_COMPILE for KPM components build..."
           echo "ARCH=arm64" >> $GITHUB_ENV
-          # NDK r25c toolchain prefix для arm64 обычно aarch64-linux-android-
+          # NDK r26d toolchain prefix для arm64 обычно aarch64-linux-android-
           echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
-          # Переменная ANDROID_NDK_HOME из 'setup-ndk' action уже доступна.
           echo "Detected ARCH: ${{ env.ARCH }}"
           echo "Detected CROSS_COMPILE: ${{ env.CROSS_COMPILE }}"
+          echo "Detected NDK_HOME: ${{ env.NDK_HOME }}" # Теперь это NDK r26d
           echo "Detected ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}"
 
       - name: Clone AnyKernel3, KernelPatches and SUSFS
@@ -130,45 +124,51 @@ jobs:
           KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
           KERNEL_SOURCE_PATH="${GITHUB_WORKSPACE}/kernel_source/aosp"
             
-          # Создаем директорию 'bin' для исполняемых файлов KPM
           mkdir -p "${KPM_REPO_PATH}/bin"
-
-          # --- Шаг 1: Сборка kptools-android (повторяем логику из SukiSU_KernelPatch_patch/build.sh) ---
+            
+          # --- Шаг 1: Сборка kptools-android ---
           echo "--- Building kptools-android ---"
           cd "${KPM_REPO_PATH}/tools"
-          rm -rf build # Очищаем предыдущую директорию сборки, если она есть
+          rm -rf build 
           mkdir -p build/android
           cd build/android
           
-          # Используем путь к NDK, предоставленный 'setup-ndk' action
           cmake \
-            -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="${NDK_HOME}/build/cmake/android.toolchain.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DANDROID_PLATFORM=android-33 \
-            -DANDROID_ABI=arm64-v8a ../..
+            -DANDROID_PLATFORM=android-35 \
+            -DANDROID_ABI=arm64-v8a ../.. # <--- ИЗМЕНЕНО: ANDROID_PLATFORM на android-35
           cmake --build .
-          mv kptools "${KPM_REPO_PATH}/bin/kptools-android" # Перемещаем в общую директорию bin
-          cd "${KPM_REPO_PATH}" # Возвращаемся в корень репозитория KPM
-
-          # --- Шаг 2: Сборка kpimg (повторяем логику из SukiSU_KernelPatch_patch/build.sh) ---
+          mv kptools "${KPM_REPO_PATH}/bin/kptools-android"
+          cd "${KPM_REPO_PATH}" 
+          
+          # --- Шаг 2: Сборка kpimg ---
           echo "--- Building kpimg ---"
           cd "${KPM_REPO_PATH}/kernel"
+          
+          # НОВЫЙ ШАГ ПАТЧИНГА MAKEFILE:
+          echo "Patching kernel/Makefile to use dynamic NDK_HOME..."
+          # Заменяем жестко закодированный путь NDK на переменную $NDK_HOME
+          # Предполагается, что жестко закодированный путь NDK_HOME в Makefile выглядит так:
+          # NDK_HOME ?= /root/.android/sdk/ndk/28.0.13004108
+          # Или используется как-то, что приводит к такому пути.
+          # Эта команда sed заменит все вхождения жестко закодированного пути на "${NDK_HOME}"
+          sed -i 's|/root/.android/sdk/ndk/28.0.13004108|${NDK_HOME}|g' Makefile
+          # Если Makefile использует NDK_HOME, но не как переменную Make (например, как обычную переменную shell),
+          # то убедимся, что она экспортирована. (Хотя мы уже делаем это глобально через $GITHUB_ENV).
+          # Также, если в Makefile есть что-то типа ANDROID_API_LEVEL=35, можно попробовать тоже сделать патч.
+          # Сейчас мы ориентируемся на самый очевидный жестко закодированный путь.
+          
           make clean
-          # Для Makefile передаем ARCH, CROSS_COMPILE и ANDROID_NDK_HOME.
-          # KERNEL_SOURCE может быть полезен для поиска заголовочных файлов ядра.
-          make ARCH=${{ env.ARCH }} CROSS_COMPILE=${{ env.CROSS_COMPILE }} NDK_HOME="${ANDROID_NDK_HOME}" KERNEL_SOURCE="${KERNEL_SOURCE_PATH}"
+          make ARCH=${{ env.ARCH }} CROSS_COMPILE=${{ env.CROSS_COMPILE }} NDK_HOME="${{ env.NDK_HOME }}" KERNEL_SOURCE="${KERNEL_SOURCE_PATH}"
           if [ $? -ne 0 ]; then
             echo "Failed to build kpimg"
             exit 1
           fi
-          mv kpimg "${KPM_REPO_PATH}/bin/kpimg_exec" # Переименовываем для ясности как исполняемый файл.
+          mv kpimg "${KPM_REPO_PATH}/bin/kpimg_exec"
           echo "KPM components built successfully."
           ls -l "${KPM_REPO_PATH}/bin/kptools-android"
           ls -l "${KPM_REPO_PATH}/bin/kpimg_exec"
-          
-          # Шаги по шифрованию, xxd и сборке patch_android/linux опускаются,
-          # так как они, по всей видимости, не участвуют напрямую в процессе патчинга образа ядра,
-          # а предназначены для генерации заголовков или сборки пользовательских компонентов.
 
       - name: Getting magiskboot tool
         run: |
