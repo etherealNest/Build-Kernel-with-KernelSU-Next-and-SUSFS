@@ -122,7 +122,7 @@ jobs:
           echo "Preparing and executing SukiSU_KernelPatch_patch/build.sh..."
           KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
             
-          # --- Патчим SukiSU_KernelPatch_patch/build.sh ---
+          # Патчим SukiSU_KernelPatch_patch/build.sh
           echo "Patching SukiSU_KernelPatch_patch/build.sh for NDK_HOME, ANDROID_NDK, and ANDROID_PLATFORM..."
           # 1. Заменяем жестко закодированный NDK_HOME на переменную окружения NDK_HOME
           sed -i 's|export NDK_HOME=.*|export NDK_HOME='"${NDK_HOME}"'|g' "${KPM_REPO_PATH}/build.sh"
@@ -131,7 +131,7 @@ jobs:
           # 3. Обновляем ANDROID_PLATFORM с 33 на 34, чтобы соответствовать NDK r26d (макс. 34)
           sed -i 's|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g' "${KPM_REPO_PATH}/build.sh"
           
-          # --- Патчим SukiSU_KernelPatch_patch/kernel/Makefile ---
+          # Патчим SukiSU_KernelPatch_patch/kernel/Makefile
           # Это ключевое изменение для решения проблемы "Permission denied" / "Error 127"
           echo "Patching SukiSU_KernelPatch_patch/kernel/Makefile for TARGET_COMPILE..."
           # Заменяем жестко закодированный путь TARGET_COMPILE на динамический путь NDK_HOME
