@@ -134,15 +134,6 @@ jobs:
           fi
           echo "SukiSU_KernelPatch_patch/build.sh executed successfully."
 
-      - name: Start VS Code
-        if: always()      
-        uses: fawazahmed0/action-debug-vscode@main
-        with:
-          port: 8080
-          folder: ${{ github.workspace }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-
       - name: Getting magiskboot tool
         run: |
           set -e
