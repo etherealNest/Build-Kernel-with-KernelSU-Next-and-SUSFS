@@ -73,18 +73,34 @@ jobs:
 
       - name: Setup Android NDK
         if: ${{ inputs.ksu_type == 'suki-su' }}
-        uses: android-actions/setup-ndk@v1 # Используем популярный action для NDK
+        id: setup-ndk # Добавляем ID для доступа к выходным данным этого действия
+        uses: nttld/setup-ndk@v1 # Используем найденное вами действие 'nttld/setup-ndk'
         with:
-          ndk: '25.2.9519653' # NDK r25c поддерживает Android 33, как указано в build.sh
+          ndk-version: r25c # Соответствует NDK 25.2.9519653, который поддерживает android-33
+          add-to-path: false # Мы будем явно передавать путь к NDK через переменную окружения NDK_HOME
+
+      # НОВЫЙ ШАГ: Устанавливаем NDK_HOME и ANDROID_NDK_HOME в переменные окружения GitHub Actions
+      # Это необходимо, потому что SukiSU_KernelPatch_patch/build.sh использует NDK_HOME.
+      - name: Set NDK_HOME and ANDROID_NDK_HOME Environment Variables
+        if: ${{ inputs.ksu_type == 'suki-su' }}
+        run: |
+          # nttld/setup-ndk@v1 выводит путь установки NDK как 'ndk-path'.
+          # Устанавливаем NDK_HOME и ANDROID_NDK_HOME в переменную окружения для всех последующих шагов.
+          echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "NDK_HOME set to: ${{ env.NDK_HOME }}"
+          echo "ANDROID_NDK_HOME set to: ${{ env.ANDROID_NDK_HOME }}"
 
       - name: Cache Android NDK (optional but recommended)
         if: ${{ inputs.ksu_type == 'suki-su' }}
         id: cache-ndk
         uses: actions/cache@v3
         with:
-          path: ${{ env.ANDROID_NDK_HOME }}
-          key: ${{ runner.os }}-android-ndk-${{ hashFiles('**/build.yml') }}
-          restore-keys: ${{ runner.os }}-android-ndk-
+          # Используем выходной путь от действия setup-ndk для кэширования
+          path: ${{ steps.setup-ndk.outputs.ndk-path }} 
+          # Добавляем версию NDK в ключ кэша для лучшей изоляции
+          key: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-${{ hashFiles('**/build.yml') }}
+          restore-keys: ${{ runner.os }}-android-ndk-${{ steps.setup-ndk.outputs.ndk-version }}-
 
       - name: Determine Kernel Build Variables for KPM
         if: ${{ inputs.ksu_type == 'suki-su' }}
@@ -559,10 +575,10 @@ jobs:
           ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
           ORIG_IMAGE="${ARTIFACT_DIR}/Image.lz4"
           PATCHED_IMAGE_TMP="${ARTIFACT_DIR}/Image.lz4.kpm_tmp" # Временный файл для пропатченного образа
-  
+
           KPTOOLS_ANDROID="${KPM_REPO_PATH}/bin/kptools-android"
           KPIMG_EXEC="${KPM_REPO_PATH}/bin/kpimg_exec"
-  
+
           # Проверяем наличие необходимых файлов
           if [ ! -f "${KPTOOLS_ANDROID}" ]; then
             echo "Error: kptools-android executable not found at ${KPTOOLS_ANDROID}. Did the 'Build KPM Components' step fail?"
@@ -576,7 +592,7 @@ jobs:
             echo "Error: Original kernel image not found at ${ORIG_IMAGE}. Did the 'Build Kernel' step fail?"
             exit 1
           fi
-  
+
           # Выполняем патчинг образа ядра
           # Согласно guide.md [1], kptools патчит образ ядра, добавляя kpimg и изменяя точку входа.
           # Используем синтаксис: kptools <входной_образ> <путь_к_kpimg> <выходной_образ>
@@ -585,7 +601,7 @@ jobs:
             echo "Failed to patch kernel image with KPM using kptools-android."
             exit 1
           fi
-  
+
           # Заменяем оригинальный Image.lz4 на пропатченный
           mv "${PATCHED_IMAGE_TMP}" "${ORIG_IMAGE}"
           echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
