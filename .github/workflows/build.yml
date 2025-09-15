@@ -516,11 +516,20 @@ jobs:
           ORIG_IMAGE="${ARTIFACT_DIR}/Image.lz4"
           PATCHED_IMAGE_TMP="${ARTIFACT_DIR}/Image.lz4.kpm_tmp"
 
-          KPTOOLS_ANDROID="${KPM_REPO_PATH}/patch/res/kptools-android"
+          # Используем kptools-linux для хоста Ubuntu
+          KPTOOLS_LINUX="${KPM_REPO_PATH}/patch/res/kptools-linux"
           KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg"
 
-          if [ ! -f "${KPTOOLS_ANDROID}" ]; then
-            echo "Error: kptools-android executable not found at ${KPTOOLS_ANDROID}. Did SukiSU_KernelPatch_patch/build.sh fail?"
+          if [ ! -f "${KPTOOLS_LINUX}" ]; then
+            echo "Error: kptools-linux executable not found at ${KPTOOLS_LINUX}. Did SukiSU.lz4"
+          PATCHED_IMAGE_TMP="${ARTIFACT_DIR}/Image.lz4.kpm_tmp"
+
+          # Используем kptools-linux для хоста Ubuntu
+          KPTOOLS_LINUX="${KPM_REPO_PATH}/patch/res/kptools-linux"
+          KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg"
+
+          if [ ! -f "${KPTOOLS_LINUX}" ]; then
+            echo "Error: kptools-linux executable not found at ${KPTOOLS_LINUX}. Did SukiSU_KernelPatch_patch/build.sh fail?"
             exit 1
           fi
           if [ ! -f "${KPIMG_EXEC}" ]; then
@@ -532,9 +541,10 @@ jobs:
             exit 1
           fi
 
-          "${KPTOOLS_ANDROID}" "${ORIG_IMAGE}" "${KPIMG_EXEC}" "${PATCHED_IMAGE_TMP}"
+          # Выполнение патчинга с использованием корректного инструмента и синтаксиса
+          "${KPTOOLS_LINUX}" -p -i "${ORIG_IMAGE}" -k "${KPIMG_EXEC}" -o "${PATCHED_IMAGE_TMP}"
           if [ $? -ne 0 ]; then
-            echo "Failed to patch kernel image with KPM using kptools-android."
+            echo "Failed to patch kernel image with KPM using kptools-linux."
             exit 1
           fi
 
