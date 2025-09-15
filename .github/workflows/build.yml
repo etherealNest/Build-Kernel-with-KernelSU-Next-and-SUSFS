@@ -101,11 +101,10 @@ jobs:
         run: |
           echo "Determining ARCH and CROSS_COMPILE for KPM components build..."
           echo "ARCH=arm64" >> $GITHUB_ENV
-          # NDK r26d toolchain prefix для arm64 обычно aarch64-linux-android-
-          echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
+          echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV # NDK r26d toolchain prefix для arm64
           echo "Detected ARCH: ${{ env.ARCH }}"
           echo "Detected CROSS_COMPILE: ${{ env.CROSS_COMPILE }}"
-          echo "Detected NDK_HOME: ${{ env.NDK_HOME }}" # Теперь это NDK r26d
+          echo "Detected NDK_HOME: ${{ env.NDK_HOME }}" 
           echo "Detected ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}"
 
       - name: Clone AnyKernel3, KernelPatches and SUSFS
@@ -136,31 +135,27 @@ jobs:
           cmake \
             -DCMAKE_TOOLCHAIN_FILE="${NDK_HOME}/build/cmake/android.toolchain.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DANDROID_PLATFORM=android-35 \
-            -DANDROID_ABI=arm64-v8a ../.. # <--- ИЗМЕНЕНО: ANDROID_PLATFORM на android-35
+            -DANDROID_PLATFORM=android-34 \ # <--- ИЗМЕНЕНО: теперь используем android-34
+            -DANDROID_ABI=arm64-v8a ../.. 
           cmake --build .
-          mv kptools "${KPM_REPO_PATH}/bin/kptools-android"
+          mv kptools "${KPM_REPO_PATH}/bin/kptools-android" 
           cd "${KPM_REPO_PATH}" 
           
           # --- Шаг 2: Сборка kpimg ---
           echo "--- Building kpimg ---"
           cd "${KPM_REPO_PATH}/kernel"
           
-          # НОВЫЙ ШАГ ПАТЧИНГА MAKEFILE:
-          echo "Patching kernel/Makefile to use dynamic NDK_HOME..."
-          # Заменяем жестко закодированный путь NDK на переменную $NDK_HOME
-          # Предполагается, что жестко закодированный путь NDK_HOME в Makefile выглядит так:
-          # NDK_HOME ?= /root/.android/sdk/ndk/28.0.13004108
-          # Или используется как-то, что приводит к такому пути.
-          # Эта команда sed заменит все вхождения жестко закодированного пути на "${NDK_HOME}"
-          sed -i 's|/root/.android/sdk/ndk/28.0.13004108|${NDK_HOME}|g' Makefile
-          # Если Makefile использует NDK_HOME, но не как переменную Make (например, как обычную переменную shell),
-          # то убедимся, что она экспортирована. (Хотя мы уже делаем это глобально через $GITHUB_ENV).
-          # Также, если в Makefile есть что-то типа ANDROID_API_LEVEL=35, можно попробовать тоже сделать патч.
-          # Сейчас мы ориентируемся на самый очевидный жестко закодированный путь.
+          # УДАЛЕНО: Шаг патчинга Makefile с помощью sed больше не нужен.
+          # Вместо этого, TARGET_COMPILE будет передан как аргумент make.
           
           make clean
-          make ARCH=${{ env.ARCH }} CROSS_COMPILE=${{ env.CROSS_COMPILE }} NDK_HOME="${{ env.NDK_HOME }}" KERNEL_SOURCE="${KERNEL_SOURCE_PATH}"
+          # <--- ИЗМЕНЕНО: Добавляем TARGET_COMPILE в команду make.
+          # Это переопределит 'ifndef TARGET_COMPILE' в Makefile.
+          make ARCH=${{ env.ARCH }} \
+               CROSS_COMPILE=${{ env.CROSS_COMPILE }} \
+               NDK_HOME="${{ env.NDK_HOME }}" \
+               KERNEL_SOURCE="${KERNEL_SOURCE_PATH}" \
+               TARGET_COMPILE="${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" # <--- НОВОЕ: Передаем TARGET_COMPILE
           if [ $? -ne 0 ]; then
             echo "Failed to build kpimg"
             exit 1
