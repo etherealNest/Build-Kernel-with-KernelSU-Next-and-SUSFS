@@ -117,7 +117,7 @@ jobs:
           sed -i "s|export NDK_HOME=.*|export NDK_HOME=\"${NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
           sed -i "s|export ANDROID_NDK=.*|export ANDROID_NDK=\"${ANDROID_NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
           sed -i "s|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g" "${KPM_REPO_PATH}/build.sh"
-          
+
           echo "Patching SukiSU_KernelPatch_patch/kernel/Makefile for TARGET_COMPILE and compiler version..."
           sed -i "s|TARGET_COMPILE=/root/.android/sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin|TARGET_COMPILE=\"${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin\"|g" "${KPM_REPO_PATH}/kernel/Makefile"
           
@@ -125,7 +125,7 @@ jobs:
           sed -i 's|aarch64-linux-android35-clang|aarch64-linux-android34-clang|g' "${KPM_REPO_PATH}/kernel/Makefile"
           
           chmod +x "${KPM_REPO_PATH}/build.sh"
-          
+
           cd "${KPM_REPO_PATH}"
           ./build.sh
           if [ $? -ne 0 ]; then
@@ -133,6 +133,15 @@ jobs:
             exit 1
           fi
           echo "SukiSU_KernelPatch_patch/build.sh executed successfully."
+
+      - name: Start VS Code
+        if: always()      
+        uses: fawazahmed0/action-debug-vscode@main
+        with:
+          port: 8080
+          folder: ${{ github.workspace }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: Getting magiskboot tool
         run: |
@@ -230,39 +239,6 @@ jobs:
           
           echo "Detected ARCH: ${{ env.ARCH }}"
           echo "Detected CROSS_COMPILE: ${{ env.CROSS_COMPILE }}"
-
-      - name: Build KPM Components (kptools, kpimg)
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        run: |
-          echo "Building kptools and kpimg for KPM support..."
-          KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
-          KERNEL_SOURCE_PATH="${GITHUB_WORKSPACE}/kernel_source/aosp"
-            
-          # Шаг 1: Сборка kptools [6]
-          echo "Building kptools"
-          cd "${KPM_REPO_PATH}/tools"
-          make clean
-          make ARCH=${{ env.ARCH }} CROSS_COMPILE=${{ env.CROSS_COMPILE }}
-          if [ $? -ne 0 ]; then
-            echo "Failed to build kptools"
-            exit 1
-          fi
-          cp kptools "${KPM_REPO_PATH}/kptools_exec" # Копируем в корень репозитория KPM для удобства
-            
-          # Шаг 2: Сборка kpimg [6]
-          echo "Building kpimg"
-          cd "${KPM_REPO_PATH}/kernel"
-          make clean
-          # KERNEL_SOURCE может потребоваться для доступа к заголовкам ядра [7]
-          make ARCH=${{ env.ARCH }} CROSS_COMPILE=${{ env.CROSS_COMPILE }} KERNEL_SOURCE="${KERNEL_SOURCE_PATH}"
-          if [ $? -ne 0 ]; then
-            echo "Failed to build kpimg"
-            exit 1
-          fi
-          cp kpimg "${KPM_REPO_PATH}/kpimg_exec" # Копируем в корень репозитория KPM для удобства
-          echo "KPM components built successfully."
-          ls -l "${KPM_REPO_PATH}/kptools_exec"
-          ls -l "${KPM_REPO_PATH}/kpimg_exec"
 
       - name: Apply Build System Patch
         run: |
