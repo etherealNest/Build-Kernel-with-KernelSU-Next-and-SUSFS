@@ -158,28 +158,35 @@ jobs:
 
           rm -rf Magisk*.apk magisk_unzip
           
-      - name: Download offical firmware for geting stock .img
+#      - name: Download offical firmware for geting stock .img
+#        run: |
+#          set -e
+#          # Скчиваем стоковую прошивку для получения стоковых .img.
+#
+#          DOWN_URL="https://dl.google.com/dl/android/aosp/"
+#          MKBOOTIMG_DIR="FilesForImg"
+#
+#          wget --progress=dot:mega "${DOWN_URL}${{ inputs.stock_ota }}"
+#          echo "Stock firmware downloaded"
+#
+#          mkdir -p "firmware/imgs" "${MKBOOTIMG_DIR}/assets"
+#          unzip -o "${{ inputs.stock_ota }}" '*.zip' -d firmware
+#          INNER_ZIP=$(find firmware -type f -name '*.zip' | head -n1)
+#          unzip -o "$INNER_ZIP" 'boot.img' 'vendor_kernel_boot.img' -d firmware/imgs
+#
+#          cp \
+#            "firmware/imgs/boot.img" \
+#            "firmware/imgs/vendor_kernel_boot.img" \
+#            "${MKBOOTIMG_DIR}/assets"
+#          echo "Requested stock .img copied"
+#          rm -rf firmware
+
+      - name: Copy prebuild img files
         run: |
           set -e
-          # Скчиваем стоковую прошивку для получения стоковых .img.
-
-          DOWN_URL="https://dl.google.com/dl/android/aosp/"
           MKBOOTIMG_DIR="FilesForImg"
-
-          wget --progress=dot:mega "${DOWN_URL}${{ inputs.stock_ota }}"
-          echo "Stock firmware downloaded"
-
-          mkdir -p "firmware/imgs" "${MKBOOTIMG_DIR}/assets"
-          unzip -o "${{ inputs.stock_ota }}" '*.zip' -d firmware
-          INNER_ZIP=$(find firmware -type f -name '*.zip' | head -n1)
-          unzip -o "$INNER_ZIP" 'boot.img' 'vendor_kernel_boot.img' -d firmware/imgs
-
-          cp \
-            "firmware/imgs/boot.img" \
-            "firmware/imgs/vendor_kernel_boot.img" \
-            "${MKBOOTIMG_DIR}/assets"
-          echo "Requested stock .img copied"
-          rm -rf firmware
+          mkdir -p "FilesForImg/assets"
+          unzip "prebuild_img_files.zip" -d "FilesForImg/assets"
 
       - name: Check Disk Space Before Sync
         run: |
