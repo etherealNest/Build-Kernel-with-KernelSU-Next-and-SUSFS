@@ -186,7 +186,7 @@ jobs:
           set -e
           MKBOOTIMG_DIR="FilesForImg"
           mkdir -p "FilesForImg/assets"
-          unzip "prebuild_img.zip" -d "FilesForImg/assets"
+          unzip "prebuild_.img.zip" -d "FilesForImg/assets"
 
       - name: Check Disk Space Before Sync
         run: |
