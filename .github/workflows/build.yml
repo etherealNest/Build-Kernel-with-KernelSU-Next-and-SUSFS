@@ -262,7 +262,7 @@ jobs:
           elif [ "${{ inputs.ksu_type}}" == "suki-su" ]; then
             echo "Adding SukiSU-Ultra"
             git clone -b susfs-main "https://github.com/SukiSU-Ultra/SukiSU-Ultra.git"
-            patch -p1 --forward -d "SukiSU-Ultra" < ".github/workflows/Patches/fix_throne_tracker.c.patch"
+            patch -p1 --forward -d "$GITHUB_WORKSPACE/SukiSU-Ultra" < ".github/workflows/Patches/fix_throne_tracker.c.patch"
             bash ./SukiSU-Ultra/kernel/setup.sh
           fi
 
