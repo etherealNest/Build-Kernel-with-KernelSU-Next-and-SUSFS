@@ -269,9 +269,9 @@ jobs:
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
           elif [ "${{ inputs.ksu_type}}" == "suki-su" ]; then
             echo "Adding SukiSU-Ultra"
-            git clone -b susfs-main "https://github.com/SukiSU-Ultra/SukiSU-Ultra.git"
-            patch -p1 --forward -d "$GITHUB_WORKSPACE/kernel_source/aosp/SukiSU-Ultra" < "$GITHUB_WORKSPACE/.github/workflows/Patches/fix_throne_tracker.c.patch"
-            bash ./SukiSU-Ultra/kernel/setup.sh
+            git clone -b susfs-main "https://github.com/SukiSU-Ultra/SukiSU-Ultra.git" KernelSU
+            patch -p1 --forward -d "$GITHUB_WORKSPACE/kernel_source/aosp/KernelSU" < "$GITHUB_WORKSPACE/.github/workflows/Patches/fix_throne_tracker.c.patch"
+            bash ./KernelSU/kernel/setup.sh
           fi
 
       - name: Apply SUSFS Patches
