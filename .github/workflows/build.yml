@@ -61,6 +61,14 @@ jobs:
 #          remove-cached-tools: 'false'   # Avoid unless confirmed safe
 #          verbose: 'true'                # Enable detailed logging
 
+      - name: Download Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+
+          unzip android-ndk-r28c-linux.zip
+          ANDROID_NDK="android-ndk-r28c"
+          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
+
       - name: Install Build Dependencies
         run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++ xxd
 
@@ -269,9 +277,8 @@ jobs:
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
           elif [ "${{ inputs.ksu_type}}" == "suki-su" ]; then
             echo "Adding SukiSU-Ultra"
-            git clone -b susfs-main "https://github.com/SukiSU-Ultra/SukiSU-Ultra.git" KernelSU
+            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
             patch -p1 --forward -d "$GITHUB_WORKSPACE/kernel_source/aosp/KernelSU" < "$GITHUB_WORKSPACE/.github/workflows/Patches/fix_throne_tracker.c.patch"
-            bash ./KernelSU/kernel/setup.sh
           fi
 
       - name: Apply SUSFS Patches
