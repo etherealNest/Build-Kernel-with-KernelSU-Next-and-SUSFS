@@ -260,6 +260,7 @@ jobs:
       - name: Add KernelSU
         working-directory: kernel_source/aosp
         run: |
+          set -ex
           if [ "${{ inputs.ksu_type}}" == "ksu-next" ]; then
             echo "Adding KernelSU Next"
             curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
