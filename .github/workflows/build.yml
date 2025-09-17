@@ -278,8 +278,6 @@ jobs:
           elif [ "${{ inputs.ksu_type}}" == "suki-su" ]; then
             echo "Adding SukiSU-Ultra"
             curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
-            patch -p1 --forward -d "$GITHUB_WORKSPACE/kernel_source/aosp/KernelSU" < "$GITHUB_WORKSPACE/.github/workflows/Patches/fix_throne_tracker.c.patch"
-          cat "KernelSU/kernel/throne_tracker.c"
           fi
 
       - name: Apply SUSFS Patches
