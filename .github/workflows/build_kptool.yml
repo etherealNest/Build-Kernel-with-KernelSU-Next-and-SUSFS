@@ -21,11 +21,11 @@ jobs:
       - name: Download Android NDK
         run: |
           wget --progress=dot:mega https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
-          "Download Complete"
+          echo "Download Complete"
 
           unzip android-ndk-r28c-linux.zip
           echo "unzip Complete"
-          echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c" >> $GITHUB_ENV
+          echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c"
           echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
       
       - name: Clone SukiSU_KernelPatch_patch
