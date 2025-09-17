@@ -1,0 +1,36 @@
+name: build kptool
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write 
+
+jobs:
+  build-pixel-kernel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++ xxd
+      
+      - name: Download Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+
+          unzip android-ndk-r28c-linux.zip
+          echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c" >> $GITHUB_ENV
+          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
+      
+      - name: Clone SukiSU_KernelPatch_patch
+        run: |
+          git clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
+      
+      - name: Change path Android NDK
+        run: |
+          sed -i "s|/root/.android/sdk/ndk/28.0.13004108|${ANDROID_NDK}|g" SukiSU_KernelPatch_patch/build.sh
+
