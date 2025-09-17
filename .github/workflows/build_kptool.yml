@@ -35,7 +35,6 @@ jobs:
         working-directory: SukiSU_KernelPatch_patch
         run: |
           sed -i 's#/root/.android/sdk/ndk/28.0.13004108#${ANDROID_NDK}#g' \
-            tools/build/android/CMakeCache.txt \
             patch/build.sh \
             build.sh \
             kernel/Makefile
