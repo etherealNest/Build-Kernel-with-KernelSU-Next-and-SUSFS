@@ -61,13 +61,13 @@ jobs:
 #          remove-cached-tools: 'false'   # Avoid unless confirmed safe
 #          verbose: 'true'                # Enable detailed logging
 
-      - name: Download Android NDK
-        run: |
-          wget https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
-
-          unzip android-ndk-r28c-linux.zip
-          ANDROID_NDK="android-ndk-r28c"
-          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
+#      - name: Download Android NDK
+#        run: |
+#          wget https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+#
+#          unzip android-ndk-r28c-linux.zip
+#          ANDROID_NDK="android-ndk-r28c"
+#          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
 
       - name: Install Build Dependencies
         run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++ xxd
