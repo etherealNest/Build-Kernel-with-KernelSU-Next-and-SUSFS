@@ -16,13 +16,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Build Dependencies
-        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++ xxd
+        run: sudo apt-get update && sudo apt-get install -y wget unzip cmake
       
       - name: Download Android NDK
         run: |
-          wget https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+          wget --progress=dot:mega https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+          "Download Complete"
 
           unzip android-ndk-r28c-linux.zip
+          echo "unzip Complete"
           echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c" >> $GITHUB_ENV
           echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
       
