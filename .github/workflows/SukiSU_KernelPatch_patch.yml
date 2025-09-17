@@ -1,4 +1,4 @@
-name: build kernel
+name: build kptool
 
 on:
   workflow_dispatch:
