@@ -25,14 +25,23 @@ jobs:
 
           unzip android-ndk-r28c-linux.zip
           echo "unzip Complete"
-          echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c"
-          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
+          echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c" >> $GITHUB_ENV
       
       - name: Clone SukiSU_KernelPatch_patch
         run: |
           git clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
       
       - name: Change path Android NDK
+        working-directory: SukiSU_KernelPatch_patch
         run: |
-          sed -i "s|/root/.android/sdk/ndk/28.0.13004108|${ANDROID_NDK}|g" SukiSU_KernelPatch_patch/build.sh
+          sed -i 's#/root/.android/sdk/ndk/28.0.13004108#${ANDROID_NDK}#g' \
+            tools/build/android/CMakeCache.txt \
+            patch/build.sh \
+            build.sh \
+            kernel/Makefile
 
+      - name: Build kptool
+        working-directory: SukiSU_KernelPatch_patch
+        run: |
+          chmod +x build.sh
+          ./build.sh
