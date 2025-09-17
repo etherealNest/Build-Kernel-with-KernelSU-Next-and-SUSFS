@@ -328,14 +328,6 @@ jobs:
             patch -p1 --forward < fix_kernel_compat.c.patch
           fi
 
-      - name: Start VS Code
-        if: always()      
-        uses: fawazahmed0/action-debug-vscode@main
-        with:
-          port: 8080
-          folder: ${{ github.workspace }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Get KernelSU Version
         working-directory: kernel_source/aosp
         run: |          
@@ -511,6 +503,14 @@ jobs:
         working-directory: kernel_source
         run: |
           ./build_${{ inputs.device }}.sh --kernel_package=@//aosp
+
+      - name: Start VS Code
+        if: always()      
+        uses: fawazahmed0/action-debug-vscode@main
+        with:
+          port: 8080
+          folder: ${{ github.workspace }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Patch Kernel Image with KPM
         if: ${{ inputs.ksu_type == 'suki-su' }}
