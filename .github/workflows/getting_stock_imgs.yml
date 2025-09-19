@@ -39,7 +39,7 @@ jobs:
           echo "Images extracted: boot.img and vendor_kernel_boot.img"
 
       - name: Upload Images as Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: stock-images
           path: extracted_imgs
