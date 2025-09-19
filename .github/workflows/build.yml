@@ -407,14 +407,6 @@ jobs:
         run: |
           ./build_${{ inputs.device }}.sh --kernel_package=@//aosp
 
-      - name: Start VS Code
-        if: always()      
-        uses: fawazahmed0/action-debug-vscode@main
-        with:
-          port: 8080
-          folder: ${{ github.workspace }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Patch Kernel Image with KPM
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
