@@ -70,7 +70,7 @@ jobs:
 #          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
 
       - name: Install Build Dependencies
-        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++ xxd
+        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential lz4
 
       - name: Install Repo
         run: |
@@ -263,7 +263,7 @@ jobs:
           # Нужно вручную подменить номер версии, это лишь визуальная часть.
           # Во время сборки bazel он выполняет всё в песочнице и Makefile попросту не видит папки .git для подсчёта версии.
 
-          if [ "${{ inputs.ksu_type }}" == "ksu-next" || 'ksu' ]; then
+          if [ "${{ inputs.ksu_type }}" == "ksu-next" ] || [ "${{ inputs.ksu_type }}" == "ksu" ]; then
             sed -i "s/ccflags-y += -DKSU_VERSION=${STATIC_VERSION}/ccflags-y += -DKSU_VERSION=${KSUVER}/" Makefile
           elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
             sed -i "57s/${STATIC_VERSION}/${KSUVER}/" Makefile
