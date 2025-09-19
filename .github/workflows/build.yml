@@ -86,7 +86,7 @@ jobs:
           git clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
           git clone https://github.com/etherealNest/kernel_patches.git
 
-          if [ "${{ inputs.disable_susfs_patches }}" == "true" ]; then
+          if [ "${{ inputs.susfs }}" == "true" ]; then
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
           fi
 
