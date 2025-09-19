@@ -1,4 +1,4 @@
-name: build kptool
+name: Build KPTool
 
 on:
   workflow_dispatch:
@@ -44,3 +44,10 @@ jobs:
         run: |
           chmod +x build.sh
           ./build.sh
+      - name: Upload kptools artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kptools
+          path: |
+            SukiSU_KernelPatch_patch/patch/res/kptools-linux
+            SukiSU_KernelPatch_patch/patch/res/kpimg

@@ -12,9 +12,6 @@ on:
       susfs:
         required: true
         type: string
-      stock_ota:
-        required: true
-        type: string
       pixel-source-branch:
         required: true
         type: string
@@ -43,10 +40,13 @@ jobs:
       ZIP_NAME: ''
       BOOT_NAME: ''
       VENDOR_NAME: ''
+      MAGISKBOOT: '${{ github.workspace }}/Prebuilds/magiskboot'
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+      - name: Make magiskboot executable
+        run: chmod +x ${{ env.MAGISKBOOT }}
 
 #      - name: Maximize Build Space
 #        uses: AdityaGarg8/remove-unwanted-software@v5
@@ -79,122 +79,27 @@ jobs:
           chmod a+rx .bin/repo
           echo "$GITHUB_WORKSPACE/.bin" >> $GITHUB_PATH
 
-      - name: Setup Android NDK
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r26d
-          add-to-path: false
-        
-      - name: Set NDK_HOME and ANDROID_NDK_HOME Environment Variables
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        run: |
-          echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
-          echo "NDK_HOME set to: ${{ env.NDK_HOME }}"
-          echo "ANDROID_NDK_HOME set to: ${{ env.ANDROID_NDK_HOME }}"
-
-      - name: Determine Kernel Build Variables for KPM
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        run: |
-          echo "Determining ARCH and CROSS_COMPILE for KPM components build..."
-          echo "ARCH=arm64" >> $GITHUB_ENV
-          echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
-          echo "Detected ARCH: ${{ env.ARCH }}"
-          echo "Detected CROSS_COMPILE: ${{ env.CROSS_COMPILE }}"
-          echo "Detected NDK_HOME: ${{ env.NDK_HOME }}"
-          echo "Detected ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}"
-
       - name: Clone AnyKernel3, KernelPatches and SUSFS
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
           # Клонирую репозиторий с патчами, susfs и AK3. 
-          git -c credential.helper= clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
-          git -c credential.helper= clone https://github.com/etherealNest/kernel_patches.git
-          git -c credential.helper= clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
+          git clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
+          git clone https://github.com/etherealNest/kernel_patches.git
 
-      - name: Execute SukiSU_KernelPatch_patch build.sh with patching
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        run: |
-          echo "Preparing and executing SukiSU_KernelPatch_patch/build.sh..."
-          KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
-          
-          echo "Patching SukiSU_KernelPatch_patch/build.sh for NDK_HOME, ANDROID_NDK, and ANDROID_PLATFORM..."
-          sed -i "s|export NDK_HOME=.*|export NDK_HOME=\"${NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
-          sed -i "s|export ANDROID_NDK=.*|export ANDROID_NDK=\"${ANDROID_NDK_HOME}\"|g" "${KPM_REPO_PATH}/build.sh"
-          sed -i "s|-DANDROID_PLATFORM=android-33|-DANDROID_PLATFORM=android-34|g" "${KPM_REPO_PATH}/build.sh"
-
-          echo "Patching SukiSU_KernelPatch_patch/kernel/Makefile for TARGET_COMPILE and compiler version..."
-          sed -i "s|TARGET_COMPILE=/root/.android/sdk/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin|TARGET_COMPILE=\"${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin\"|g" "${KPM_REPO_PATH}/kernel/Makefile"
-          
-          # ЭТО НОВОЕ КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Замена версии API в имени компилятора
-          sed -i 's|aarch64-linux-android35-clang|aarch64-linux-android34-clang|g' "${KPM_REPO_PATH}/kernel/Makefile"
-          
-          chmod +x "${KPM_REPO_PATH}/build.sh"
-
-          cd "${KPM_REPO_PATH}"
-          ./build.sh
-          if [ $? -ne 0 ]; then
-            echo "SukiSU_KernelPatch_patch/build.sh failed."
-            exit 1
+          if [ "${{ inputs.disable_susfs_patches }}" == "true" ]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
           fi
-          echo "SukiSU_KernelPatch_patch/build.sh executed successfully."
 
-      - name: Getting magiskboot tool
-        run: |
-          set -e
-          # Получаем утилиту magiskboot напрямую из последней версии apk.
-          # Она нам нужна чтобы в будущем из стоковых .img подменить Image.lz4.
-
-          MKBOOTIMG_DIR="FilesForImg"
-
-          mkdir -p "${MKBOOTIMG_DIR}/tools" "magisk_unzip"
-
-          curl -s https://api.github.com/repos/topjohnwu/Magisk/releases \
-            | jq -r '.[0].assets[] 
-                      | select(.name | test("^Magisk.*\\.apk$")) 
-                      | .browser_download_url' \
-            | xargs -n1 wget -q
-
-          unzip -q -o Magisk*.apk -d magisk_unzip
-          cp magisk_unzip/lib/x86_64/libmagiskboot.so ${MKBOOTIMG_DIR}/tools/magiskboot
-          chmod 775 ${MKBOOTIMG_DIR}/tools/magiskboot
-          ls -l ${MKBOOTIMG_DIR}/tools
-          echo "Lust version magiskboot successfully downloaded, redy to use"
-
-          rm -rf Magisk*.apk magisk_unzip
-          
-#      - name: Download offical firmware for geting stock .img
-#        run: |
-#          set -e
-#          # Скчиваем стоковую прошивку для получения стоковых .img.
-#
-#          DOWN_URL="https://dl.google.com/dl/android/aosp/"
-#          MKBOOTIMG_DIR="FilesForImg"
-#
-#          wget --progress=dot:mega "${DOWN_URL}${{ inputs.stock_ota }}"
-#          echo "Stock firmware downloaded"
-#
-#          mkdir -p "firmware/imgs" "${MKBOOTIMG_DIR}/assets"
-#          unzip -o "${{ inputs.stock_ota }}" '*.zip' -d firmware
-#          INNER_ZIP=$(find firmware -type f -name '*.zip' | head -n1)
-#          unzip -o "$INNER_ZIP" 'boot.img' 'vendor_kernel_boot.img' -d firmware/imgs
-#
-#          cp \
-#            "firmware/imgs/boot.img" \
-#            "firmware/imgs/vendor_kernel_boot.img" \
-#            "${MKBOOTIMG_DIR}/assets"
-#          echo "Requested stock .img copied"
-#          rm -rf firmware
+          if [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+            git clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
+          fi
 
       - name: Copy prebuild img files
         run: |
           set -e
           MKBOOTIMG_DIR="FilesForImg"
-          mkdir -p "FilesForImg/assets"
-          unzip ".github/workflows/Patches/prebuild_.img.zip" -d "FilesForImg/assets"
+          mkdir -p "${MKBOOTIMG_DIR}/assets"
+          unzip "${GITHUB_WORKSPACE}/Prebuilds/prebuild_.img.zip" -d "FilesForImg/assets"
 
       - name: Check Disk Space Before Sync
         run: |
@@ -514,59 +419,13 @@ jobs:
         if: ${{ inputs.ksu_type == 'suki-su' }}
         run: |
           set -ex
-
-          echo "Patching kernel image with KPM..."
-          KPM_REPO_PATH="${GITHUB_WORKSPACE}/SukiSU_KernelPatch_patch"
-          ARTIFACT_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
-
-          ORIG_IMAGE_LZ4="${ARTIFACT_DIR}/Image.lz4"
-          ORIG_IMAGE_UNCOMPRESSED="${ARTIFACT_DIR}/Image"
-          PATCHED_IMAGE_UNCOMPRESSED_TMP="${ARTIFACT_DIR}/Image.kpm_tmp"
-          FINAL_PATCHED_IMAGE_LZ4="${ARTIFACT_DIR}/Image.lz4.kpm_patched"
-
-          KPTOOLS_LINUX="${KPM_REPO_PATH}/patch/res/kptools-linux"
-          KPIMG_EXEC="${KPM_REPO_PATH}/patch/res/kpimg"
-
-          if [ ! -f "${ORIG_IMAGE_LZ4}" ]; then
-            echo "Error: Original compressed kernel image not found at ${ORIG_IMAGE_LZ4}. Did the 'Build Kernel' step fail?"
-            exit 1
-          fi
-          if [ ! -f "${KPTOOLS_LINUX}" ]; then
-            echo "Error: kptools-linux executable not found at ${KPTOOLS_LINUX}. Did SukiSU_KernelPatch_patch/build.sh fail?"
-            exit 1
-          fi
-          if [ ! -f "${KPIMG_EXEC}" ]; then
-            echo "Error: kpimg executable not found at ${KPIMG_EXEC}. Did SukiSU_KernelPatch_patch/build.sh fail?"
-            exit 1
-          fi
-
-          echo "Decompressing original Image.lz4 to Image..."
-          lz4 -d -f "${ORIG_IMAGE_LZ4}" "${ORIG_IMAGE_UNCOMPRESSED}"
-          if [ $? -ne 0 ]; then
-            echo "Failed to decompress Image.lz4. Ensure lz4 is installed and the file is valid."
-            exit 1
-          fi
-
-          echo "Executing kptools-linux to patch uncompressed kernel image..."
-          "${KPTOOLS_LINUX}" -p -i "${ORIG_IMAGE_UNCOMPRESSED}" -k "${KPIMG_EXEC}" -s "SukiSU" -o "${PATCHED_IMAGE_UNCOMPRESSED_TMP}"
-          if [ $? -ne 0 ]; then
-            echo "Failed to patch uncompressed kernel image with KPM using kptools-linux."
-            exit 1
-          fi
-
-          echo "Recompressing patched image to Image.lz4..."
-          lz4 -z -f "${PATCHED_IMAGE_UNCOMPRESSED_TMP}" "${FINAL_PATCHED_IMAGE_LZ4}"
-          if [ $? -ne 0 ]; then
-            echo "Failed to recompress patched kernel image to Image.lz4."
-            exit 1
-          fi
-
-          echo "Replacing original Image.lz4 with patched and recompressed version."
-          mv "${FINAL_PATCHED_IMAGE_LZ4}" "${ORIG_IMAGE_LZ4}"
-          rm -f "${ORIG_IMAGE_UNCOMPRESSED}" "${PATCHED_IMAGE_UNCOMPRESSED_TMP}"
-
-          echo "Kernel image successfully patched with KPM. New Image.lz4 is in place."
-          ls -l "${ORIG_IMAGE_LZ4}"
+          DIST_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
+          KPTOOL="${GITHUB_WORKSPACE}/Prebuilds/kptools-linux"
+          KPIMG="${GITHUB_WORKSPACE}/Prebuilds/kpimg"
+          # Patch existing uncompressed Image and recompress
+          "$KPTOOL" -p -i "$DIST_DIR/Image" -k "$KPIMG" -s "SukiSU" -o "$DIST_DIR/Image.kpm_tmp"
+          lz4 -z -f "$DIST_DIR/Image.kpm_tmp" "$DIST_DIR/Image.lz4"
+          echo "Kernel image patched with KPM successfully."
 
       - name: Prepare Artifacts for Packaging
         run: |
@@ -610,14 +469,12 @@ jobs:
         run: |
           set -ex
 
-          TOOLS_DIR="tools"
           ASSETS_DIR="assets"
           OUTPUT_DIR="output"
           TMP_DIR="tmp_build"
 
-          # Получаем абсолютные пути, чтобы они работали после смены директории (cd)
+          # Используем MAGISKBOOT из env
           BASE_DIR="$PWD"
-          MAGISKBOOT="$BASE_DIR/$TOOLS_DIR/magiskboot"
 
           # Подготовка
           echo "Preparing workspace..."
