@@ -101,11 +101,6 @@ jobs:
           mkdir -p "${MKBOOTIMG_DIR}/assets"
           unzip "${GITHUB_WORKSPACE}/Prebuilds/stock_${{ inputs.device }}_img.zip" -d "FilesForImg/assets"
 
-      - name: Check Disk Space Before Sync
-        run: |
-          echo "Disk space before kernel source sync:"
-          df -h
-
       - name: Initialize and Sync Kernel Source
         run: |
           KERNEL_DIR="kernel_source"
@@ -127,6 +122,11 @@ jobs:
           echo "Syncing repositories..."
           repo sync -c -j$(nproc --all) --fail-fast --no-tags
 
+      - name: Check Disk Space Before Sync
+        run: |
+          echo "Disk space before kernel source sync:"
+          df -h
+
       - name: Verify Kernel Version
         run: |
           cd kernel_source/aosp
@@ -134,22 +134,6 @@ jobs:
           echo "KERNEL_VER=$KERNEL_VER" >> $GITHUB_ENV
 
           echo "Kernel version detected: ${KERNEL_VER}"
-
-      - name: Determine Kernel Build Variables for KPM
-        if: ${{ inputs.ksu_type == 'suki-su' }}
-        run: |
-          echo "Determining ARCH and CROSS_COMPILE for KPM components build..."
-          # Для Pixel-устройств с AOSP GKI ядрами обычно ARCH arm64
-          echo "ARCH=arm64" >> $GITHUB_ENV
-
-          # CROSS_COMPILE обычно имеет вид aarch64-linux-gnu-
-          # Ваш build_${{ inputs.device }}.sh скрипт должен устанавливать правильный тулчейн в PATH.
-          # Если это не так, вам может потребоваться явно указать путь к CROSS_COMPILE (например, /path/to/toolchain/bin/aarch64-linux-gnu-).
-          # Предполагаем стандартный aarch64-linux-gnu-
-          echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
-          
-          echo "Detected ARCH: ${{ env.ARCH }}"
-          echo "Detected CROSS_COMPILE: ${{ env.CROSS_COMPILE }}"
 
       - name: Apply Build System Patch
         run: |
