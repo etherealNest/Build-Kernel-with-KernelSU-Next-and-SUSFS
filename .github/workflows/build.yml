@@ -99,7 +99,7 @@ jobs:
           set -e
           MKBOOTIMG_DIR="FilesForImg"
           mkdir -p "${MKBOOTIMG_DIR}/assets"
-          unzip "${GITHUB_WORKSPACE}/Prebuilds/prebuild_.img.zip" -d "FilesForImg/assets"
+          unzip "${GITHUB_WORKSPACE}/Prebuilds/stock_${{ inputs.device }}_img.zip" -d "FilesForImg/assets"
 
       - name: Check Disk Space Before Sync
         run: |
