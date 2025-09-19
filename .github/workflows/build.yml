@@ -398,6 +398,8 @@ jobs:
           DIST_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
           KPTOOL="${GITHUB_WORKSPACE}/Prebuilds/kptools-linux"
           KPIMG="${GITHUB_WORKSPACE}/Prebuilds/kpimg"
+          chmod +x ${KPTOOL}
+          chmod +x ${KPIMG}
           # Patch existing uncompressed Image and recompress
           "$KPTOOL" -p -i "$DIST_DIR/Image" -k "$KPIMG" -s "SukiSU" -o "$DIST_DIR/Image.kpm_tmp"
           lz4 -z -f "$DIST_DIR/Image.kpm_tmp" "$DIST_DIR/Image.lz4"
@@ -537,9 +539,5 @@ jobs:
 #          include-hidden-files: false
 
       - name: Start VS Code if fail build
-        if: failure()      
+        if: failure()
         uses: fawazahmed0/action-debug-vscode@main
-        with:
-          port: 8080
-          folder: ${{ github.workspace }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
