@@ -1,4 +1,4 @@
-name: build kernel
+name: build engine
 
 on:
   workflow_call:
@@ -21,7 +21,7 @@ on:
       hooks_type:
         required: true
         type: string
-      disable_susfs_patches:
+      next_debug:
         required: false
         type: string
       
@@ -47,27 +47,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Make magiskboot executable
         run: chmod +x ${{ env.MAGISKBOOT }}
-
-#      - name: Maximize Build Space
-#        uses: AdityaGarg8/remove-unwanted-software@v5
-#        with:
-#          remove-dotnet: 'true'          # Frees ~2 GB
-#          remove-android: 'true'         # Frees ~9 GB
-#          remove-haskell: 'true'         # Frees ~5.2 GB
-#          remove-codeql: 'true'          # Frees ~5.4 GB
-#          remove-docker-images: 'true'   # Frees ~3.2 GB
-#          remove-large-packages: 'true'  # Frees ~3.1 GB
-#          remove-swapfile: 'true'        # Frees ~4 GB
-#          remove-cached-tools: 'false'   # Avoid unless confirmed safe
-#          verbose: 'true'                # Enable detailed logging
-
-#      - name: Download Android NDK
-#        run: |
-#          wget https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
-#
-#          unzip android-ndk-r28c-linux.zip
-#          ANDROID_NDK="android-ndk-r28c"
-#          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
 
       - name: Install Build Dependencies
         run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential lz4
@@ -196,7 +175,7 @@ jobs:
             patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           fi
 
-          if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
+          if [ "${{ inputs.ksu_type }}" == "ksu-next" ] && [ "${{ inputs.next_debug }}" == "false" ]; then
             # Применяю несколько мелких патчей к файлам к которым не мог применить основной патч.
             echo "STARTED fix for apk_sign.c"
             cp ../../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch ./
@@ -528,15 +507,15 @@ jobs:
           overwrite: false
           include-hidden-files: false
 
-#      - name: Upload vendor_kernel_boot.img Artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: ${{ env.VENDOR_NAME }}
-#          path: vendor_kernel_boot_*.img.gz
-#          if-no-files-found: warn
-#          compression-level: 6
-#          overwrite: false
-#          include-hidden-files: false
+      - name: Upload vendor_kernel_boot.img Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.VENDOR_NAME }}
+          path: vendor_kernel_boot_*.img.gz
+          if-no-files-found: warn
+          compression-level: 6
+          overwrite: false
+          include-hidden-files: false
 
       - name: Start VS Code if fail build
         if: failure()

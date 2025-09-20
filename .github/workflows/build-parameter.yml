@@ -52,6 +52,11 @@ on:
         required: true
         type: boolean
         default: true
+      next_debug:
+        description: 'Enable KernelSU-Next debug?'
+        required: false
+        type: boolean
+        default: false
       create_release:
         description: 'Create a release after matrix build?'
         required: true
@@ -70,6 +75,7 @@ jobs:
       pixel-source-branch: ${{ github.event.inputs.pixel-source-branch }}
       aosp-spoofing: ${{ github.event.inputs.aosp-spoofing }}
       hooks_type: ${{ github.event.inputs.hooks_type }}
+      next_debug: ${{ github.event.inputs.next_debug }}
 
   # Матричная сборка с комбинированием ksu_type, susfs и hooks_type
   build-kernel-matrix:
@@ -91,6 +97,7 @@ jobs:
       pixel-source-branch: 'android-gs-shusky-6.1-android16'
       aosp-spoofing: 'android14-6.1-2025-05_r8'
       hooks_type: ${{ matrix.hooks_type }}
+      next_debug: 'false'
 
   create-release:
     name: Create Release
