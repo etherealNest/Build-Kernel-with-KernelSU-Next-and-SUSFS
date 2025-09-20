@@ -71,11 +71,12 @@ jobs:
     with:
       device: ${{ github.event.inputs.device }}
       ksu_type: ${{ github.event.inputs.ksu_type }}
-      susfs: ${{ github.event.inputs.susfs }}
+      # workflow_dispatch inputs are strings; convert to boolean for reusable workflow
+      susfs: ${{ fromJSON(github.event.inputs.susfs) }}
       pixel-source-branch: ${{ github.event.inputs.pixel-source-branch }}
       aosp-spoofing: ${{ github.event.inputs.aosp-spoofing }}
       hooks_type: ${{ github.event.inputs.hooks_type }}
-      next_debug: ${{ github.event.inputs.next_debug }}
+      next_debug: ${{ fromJSON(github.event.inputs.next_debug) }}
 
   # Матричная сборка с комбинированием ksu_type, susfs и hooks_type
   build-kernel-matrix:
@@ -101,7 +102,8 @@ jobs:
 
   create-release:
     name: Create Release
-    if: github.event.inputs.run_type == 'matrix' && github.event.inputs.create_release == 'true'
+    # create_release comes as string; convert to boolean for condition
+    if: github.event.inputs.run_type == 'matrix' && fromJSON(github.event.inputs.create_release)
     needs: build-kernel-matrix
     runs-on: ubuntu-latest
     permissions:
