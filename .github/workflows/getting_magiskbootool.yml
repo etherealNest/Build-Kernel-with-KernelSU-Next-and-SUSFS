@@ -25,8 +25,8 @@ jobs:
             | jq -r '.[0].assets[] | select(.name|test("^Magisk.*\\.apk$")) | .browser_download_url')
           curl -sL "$URL" -o magisk.apk
           # Извлечение только libmagiskboot.so из соответствующей архитектуры
-          unzip -q magisk.apk "lib/x86-64/libmagiskboot.so" -d magisk_unzip
-          cp magisk_unzip/lib/x86-64/libmagiskboot.so "$MKDIR/magiskboot"
+          unzip -q magisk.apk "lib/x86_64/libmagiskboot.so" -d magisk_unzip
+          cp magisk_unzip/lib/x86_64/libmagiskboot.so "$MKDIR/magiskboot"
           chmod +x "$MKDIR/magiskboot"
           echo "magiskboot downloaded to $MKDIR/magiskboot"
           rm -rf magisk.apk magisk_unzip

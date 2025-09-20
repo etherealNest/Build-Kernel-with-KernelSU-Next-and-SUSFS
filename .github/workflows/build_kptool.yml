@@ -1,4 +1,4 @@
-name: build kptool
+name: Build KPTool
 
 on:
   workflow_dispatch:
@@ -16,21 +16,38 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Build Dependencies
-        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential cmake g++ xxd
+        run: sudo apt-get update && sudo apt-get install -y wget unzip cmake
       
       - name: Download Android NDK
         run: |
-          wget https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+          wget --progress=dot:mega https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
+          echo "Download Complete"
 
           unzip android-ndk-r28c-linux.zip
+          echo "unzip Complete"
           echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c" >> $GITHUB_ENV
-          echo "ANDROID_NDK="${ANDROID_NDK}" >> $GITHUB_ENV
       
       - name: Clone SukiSU_KernelPatch_patch
         run: |
           git clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
       
       - name: Change path Android NDK
+        working-directory: SukiSU_KernelPatch_patch
         run: |
-          sed -i "s|/root/.android/sdk/ndk/28.0.13004108|${ANDROID_NDK}|g" SukiSU_KernelPatch_patch/build.sh
+          sed -i 's#/root/.android/sdk/ndk/28.0.13004108#${ANDROID_NDK}#g' \
+            patch/build.sh \
+            build.sh \
+            kernel/Makefile
 
+      - name: Build kptool
+        working-directory: SukiSU_KernelPatch_patch
+        run: |
+          chmod +x build.sh
+          ./build.sh
+      - name: Upload kptools artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kptools
+          path: |
+            SukiSU_KernelPatch_patch/patch/res/kptools-linux
+            SukiSU_KernelPatch_patch/patch/res/kpimg

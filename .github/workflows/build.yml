@@ -1,4 +1,4 @@
-name: build kernel
+name: build engine
 
 on:
   workflow_call:
@@ -11,10 +11,7 @@ on:
         type: string
       susfs:
         required: true
-        type: string
-      stock_ota:
-        required: true
-        type: string
+        type: boolean
       pixel-source-branch:
         required: true
         type: string
@@ -24,9 +21,10 @@ on:
       hooks_type:
         required: true
         type: string
-      disable_susfs_patches:
+      next_debug:
         required: false
-        type: string
+        type: boolean
+        default: false
       
 permissions:
   contents: write
@@ -43,26 +41,28 @@ jobs:
       ZIP_NAME: ''
       BOOT_NAME: ''
       VENDOR_NAME: ''
+      MAGISKBOOT: '${{ github.workspace }}/Prebuilds/magiskboot'
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+      - name: Make magiskboot executable
+        run: chmod +x ${{ env.MAGISKBOOT }}
 
-#      - name: Maximize Build Space
-#        uses: AdityaGarg8/remove-unwanted-software@v5
-#        with:
-#          remove-dotnet: 'true'          # Frees ~2 GB
-#          remove-android: 'true'         # Frees ~9 GB
-#          remove-haskell: 'true'         # Frees ~5.2 GB
-#          remove-codeql: 'true'          # Frees ~5.4 GB
-#          remove-docker-images: 'true'   # Frees ~3.2 GB
-#          remove-large-packages: 'true'  # Frees ~3.1 GB
-#          remove-swapfile: 'true'        # Frees ~4 GB
-#          remove-cached-tools: 'false'   # Avoid unless confirmed safe
-#          verbose: 'true'                # Enable detailed logging
+      - name: Debug print inputs
+        run: |
+          echo "ksu_type='${{ inputs.ksu_type }}'"
+          echo "susfs='${{ inputs.susfs }}'"
+          echo "hooks_type='${{ inputs.hooks_type }}'"
+          echo "next_debug='${{ inputs.next_debug }}'"
+          if [ "${{ inputs.next_debug }}" = "true" ]; then
+            echo "Next debug mode ENABLED"
+          else
+            echo "Next debug mode DISABLED"
+          fi
 
       - name: Install Build Dependencies
-        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential
+        run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential lz4
 
       - name: Install Repo
         run: |
@@ -76,60 +76,22 @@ jobs:
           echo "Cloning AnyKernel3 and other dependencies..."
           # Клонирую репозиторий с патчами, susfs и AK3. 
           git clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
           git clone https://github.com/etherealNest/kernel_patches.git
 
-      - name: Getting magiskboot tool
+          if [ "${{ inputs.susfs }}" = "true" ]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
+          fi
+
+          if [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+            git clone https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git
+          fi
+
+      - name: Copy prebuild img files
         run: |
           set -e
-          # Получаем утилиту magiskboot напрямую из последней версии apk.
-          # Она нам нужна чтобы в будущем из стоковых .img подменить Image.lz4.
-
           MKBOOTIMG_DIR="FilesForImg"
-
-          mkdir -p "${MKBOOTIMG_DIR}/tools" "magisk_unzip"
-
-          curl -s https://api.github.com/repos/topjohnwu/Magisk/releases \
-            | jq -r '.[0].assets[] 
-                      | select(.name | test("^Magisk.*\\.apk$")) 
-                      | .browser_download_url' \
-            | xargs -n1 wget -q
-
-          unzip -q -o Magisk*.apk -d magisk_unzip
-          cp magisk_unzip/lib/x86_64/libmagiskboot.so ${MKBOOTIMG_DIR}/tools/magiskboot
-          chmod 775 ${MKBOOTIMG_DIR}/tools/magiskboot
-          ls -l ${MKBOOTIMG_DIR}/tools
-          echo "Lust version magiskboot successfully downloaded, redy to use"
-
-          rm -rf Magisk*.apk magisk_unzip
-          
-      - name: Download offical firmware for geting stock .img
-        run: |
-          set -e
-          # Скчиваем стоковую прошивку для получения стоковых .img.
-
-          DOWN_URL="https://dl.google.com/dl/android/aosp/"
-          MKBOOTIMG_DIR="FilesForImg"
-
-          wget --progress=dot:mega "${DOWN_URL}${{ inputs.stock_ota }}"
-          echo "Stock firmware downloaded"
-
-          mkdir -p "firmware/imgs" "${MKBOOTIMG_DIR}/assets"
-          unzip -o "${{ inputs.stock_ota }}" '*.zip' -d firmware
-          INNER_ZIP=$(find firmware -type f -name '*.zip' | head -n1)
-          unzip -o "$INNER_ZIP" 'boot.img' 'vendor_kernel_boot.img' -d firmware/imgs
-
-          cp \
-            "firmware/imgs/boot.img" \
-            "firmware/imgs/vendor_kernel_boot.img" \
-            "${MKBOOTIMG_DIR}/assets"
-          echo "Requested stock .img copied"
-          rm -rf firmware
-
-      - name: Check Disk Space Before Sync
-        run: |
-          echo "Disk space before kernel source sync:"
-          df -h
+          mkdir -p "${MKBOOTIMG_DIR}/assets"
+          unzip "${GITHUB_WORKSPACE}/Prebuilds/stock_${{ inputs.device }}_img.zip" -d "FilesForImg/assets"
 
       - name: Initialize and Sync Kernel Source
         run: |
@@ -151,6 +113,11 @@ jobs:
 
           echo "Syncing repositories..."
           repo sync -c -j$(nproc --all) --fail-fast --no-tags
+
+      - name: Check Disk Space Before Sync
+        run: |
+          echo "Disk space before kernel source sync:"
+          df -h
 
       - name: Verify Kernel Version
         run: |
@@ -182,67 +149,63 @@ jobs:
       - name: Add KernelSU
         working-directory: kernel_source/aosp
         run: |
+          set -ex
           if [ "${{ inputs.ksu_type}}" == "ksu-next" ]; then
             echo "Adding KernelSU Next"
             curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
           elif [ "${{ inputs.ksu_type}}" == "ksu" ]; then
             echo "Adding KernelSU"
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+          elif [ "${{ inputs.ksu_type}}" == "suki-su" ]; then
+            echo "Adding SukiSU-Ultra"
+            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
           fi
 
       - name: Apply SUSFS Patches
-        if: ${{ inputs.susfs == 'true' }}
+        if: ${{ inputs.susfs }}
         working-directory: kernel_source/aosp
         run: |          
           echo "Applying SUSFS patches..."
           
-          # Тут будет у нас применяться susfs.
-          # Эта часть должна пройти без проблем.
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
           patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch
           cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           
-          echo "Applying SUSFS patches for KernelSU Next..."
-          # Тут будет интегрировать сам susfs с KernelSU Next
+          if [ "${{ inputs.ksu_type }}" != 'suki-su' ]; then
+            echo "Applying SUSFS patches for KernelSU Next..."
+            # Тут будет интегрировать сам susfs с KernelSU Next
 
-          if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
-            cd ./KernelSU-Next
-          elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
-            cd ./KernelSU
+            if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
+              cd ./KernelSU-Next
+            elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
+              cd ./KernelSU
+            fi
+
+            # Для начала применяю самый основной патч, он ожидаемо должен завершиться с ошибкой.
+            echo "Apply main patch"
+            cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
+            patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           fi
 
-          # Для начала применяю самый основной патч, он ожидаемо должен завершиться с ошибкой.
-          echo "---> Apply main patch <---"
-          cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-
-          if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
+          if [ "${{ inputs.ksu_type }}" == "ksu-next" ] && [ "${{ inputs.next_debug }}" == "false" ]; then
             # Применяю несколько мелких патчей к файлам к которым не мог применить основной патч.
-            echo "---> STARTED fix for apk_sign.c <---"
+            echo "STARTED fix for apk_sign.c"
             cp ../../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch ./
             patch -p1 --forward < fix_apk_sign.c.patch
 
-            echo "---> STARTED fix for core_hook.c <---"
+            echo "STARTED fix for core_hook.c"
             cp ../../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch ./
             patch -p1 --forward < fix_core_hook.c.patch
 
-            echo "---> STARTED fix for sucompat.c <---"
+            echo "STARTED fix for sucompat.c"
             cp ../../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch ./
             patch -p1 --forward < fix_sucompat.c.patch
 
-            echo "---> STARTED fix for fix_kernel_compat.c.patch <---"
+            echo "STARTED fix for fix_kernel_compat.c.patch"
             cp ../../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch ./
             patch -p1 --forward < fix_kernel_compat.c.patch
           fi
-
-#      - name: Start VS Code
-#        if: always()      
-#        uses: fawazahmed0/action-debug-vscode@main
-#        with:
-#          port: 8080
-#          folder: ${{ github.workspace }}
-#          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get KernelSU Version
         working-directory: kernel_source/aosp
@@ -251,20 +214,29 @@ jobs:
             cd ./KernelSU-Next
           elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
             cd ./KernelSU
+          elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+            cd ./KernelSU
           fi
 
           # KernelSU Next определяет свою версию по количеству коммитов.
 
           # Базовая версия для подсчета
-          BASE_VERSION=10200
-          
+          if [[ "${{ inputs.ksu_type }}" == "ksu-next" || "${{ inputs.ksu_type }}" == "ksu" ]]; then
+            BASE_VERSION=10200
+          elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+            BASE_VERSION=10700
+          fi
+
           # Считаем коммиты в текущей директории и добавляем к базовой версии
-          KSUVER=$(expr $(git rev-list --count HEAD) + $BASE_VERSION)
+          git fetch origin
+
+          KSUVER=$(expr $(git rev-list --count origin/main) + $BASE_VERSION)
           
           echo "Detected KSUVER: $KSUVER"
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
           
       - name: Force KernelSU Driver Version
+        if: ${{ inputs.ksu_type != 'suki-su' }}
         working-directory: kernel_source/aosp
         run: |
           echo "Forcing KSU Driver Version to ${KSUVER} in Makefile..."
@@ -275,11 +247,19 @@ jobs:
           elif [ "${{ inputs.ksu_type }}" == "ksu" ]; then
             cd ./KernelSU/kernel
             STATIC_VERSION=16
+          elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+            cd ./KernelSU/kernel
+            STATIC_VERSION=13000
           fi
 
           # Нужно вручную подменить номер версии, это лишь визуальная часть.
           # Во время сборки bazel он выполняет всё в песочнице и Makefile попросту не видит папки .git для подсчёта версии.
-          sed -i "s/ccflags-y += -DKSU_VERSION=${STATIC_VERSION}/ccflags-y += -DKSU_VERSION=${KSUVER}/" Makefile
+
+          if [ "${{ inputs.ksu_type }}" == "ksu-next" ] || [ "${{ inputs.ksu_type }}" == "ksu" ]; then
+            sed -i "s/ccflags-y += -DKSU_VERSION=${STATIC_VERSION}/ccflags-y += -DKSU_VERSION=${KSUVER}/" Makefile
+          elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+            sed -i "57s/${STATIC_VERSION}/${KSUVER}/" Makefile
+          fi
 
           echo "Makefile patched successfully."
 
@@ -291,12 +271,6 @@ jobs:
 
           cp ../../kernel_patches/next/scope_min_manual_hooks_v1.4.patch ./
           patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
-
-#      - name: Apply Hide Stuff Patches
-#        working-directory: kernel_source/aosp
-#        run: |
-#          cp ../../kernel_patches/69_hide_stuff.patch ./
-#          patch -p1 --forward -F 3 < 69_hide_stuff.patch
 
       - name: Add Configuration Settings
         working-directory: kernel_source/aosp
@@ -312,6 +286,9 @@ jobs:
           if [ "${{ inputs.hooks_type }}" == "kprobes" ]; then
             if [ "${{ inputs.ksu_type }}" == "ksu-next" ]; then
               echo "CONFIG_KSU_KPROBES_HOOK=y" >> "${DEFCONFIG_PATH}"
+            elif [ "${{ inputs.ksu_type }}" == "suki-su" ]; then
+              echo "# CONFIG_KSU_MANUAL_HOOK is not set" >> "${DEFCONFIG_PATH}"
+              echo "CONFIG_KPM=y" >> "${DEFCONFIG_PATH}"
             fi
             echo "CONFIG_KPROBES=y" >> "${DEFCONFIG_PATH}"
             echo "CONFIG_HAVE_KPROBES=y" >> "${DEFCONFIG_PATH}"
@@ -321,7 +298,9 @@ jobs:
           fi
 
           # Mountify Support
-          echo "CONFIG_OVERLAY_FS=y" >> "${DEFCONFIG_PATH}"
+          if [ "${{ inputs.ksu_type }}" == "ksu" ]; then
+            echo "CONFIG_OVERLAY_FS=y" >> "${DEFCONFIG_PATH}"
+          fi
           echo "CONFIG_TMPFS_XATTR=y" >> "${DEFCONFIG_PATH}"
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> "${DEFCONFIG_PATH}"
 
@@ -353,7 +332,7 @@ jobs:
           echo "CONFIG_IP_SET_HASH_NETPORT=y" >> "${DEFCONFIG_PATH}"
           echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> "${DEFCONFIG_PATH}"
 
-          if [ "${{ inputs.susfs }}" == "true" ]; then
+          if [ "${{ inputs.susfs }}" = "true" ]; then
             # SUSFS Configuration
             echo "CONFIG_KSU_SUSFS=y" >> "${DEFCONFIG_PATH}"
             echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "${DEFCONFIG_PATH}"
@@ -404,6 +383,20 @@ jobs:
         run: |
           ./build_${{ inputs.device }}.sh --kernel_package=@//aosp
 
+      - name: Patch Kernel Image with KPM
+        if: ${{ inputs.ksu_type == 'suki-su' }}
+        run: |
+          set -ex
+          DIST_DIR="${GITHUB_WORKSPACE}/kernel_source/out/${{ inputs.device }}/dist"
+          KPTOOL="${GITHUB_WORKSPACE}/Prebuilds/kptools-linux"
+          KPIMG="${GITHUB_WORKSPACE}/Prebuilds/kpimg"
+          chmod +x ${KPTOOL}
+          chmod +x ${KPIMG}
+          # Patch existing uncompressed Image and recompress
+          "$KPTOOL" -p -i "$DIST_DIR/Image" -k "$KPIMG" -s "SukiSU" -o "$DIST_DIR/Image.kpm_tmp"
+          lz4 -z -f "$DIST_DIR/Image.kpm_tmp" "$DIST_DIR/Image.lz4"
+          echo "Kernel image patched with KPM successfully."
+
       - name: Prepare Artifacts for Packaging
         run: |
           # Директории для артефактов
@@ -431,7 +424,7 @@ jobs:
       - name: Create ZIP Files for Different Formats
         working-directory: AnyKernel3
         run: |
-          SUSFS_STAT="${{ inputs.susfs == 'true' && '_SUSFS-v1.5.9' || '' }}"
+          SUSFS_STAT="${{ inputs.susfs && '_SUSFS-v1.5.9' || '' }}"
           echo "SUSFS_STAT=$SUSFS_STAT" >> $GITHUB_ENV
 
           ZIP_NAME="AK3_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}_${{ inputs.hooks_type }}.zip"
@@ -446,14 +439,12 @@ jobs:
         run: |
           set -ex
 
-          TOOLS_DIR="tools"
           ASSETS_DIR="assets"
           OUTPUT_DIR="output"
           TMP_DIR="tmp_build"
 
-          # Получаем абсолютные пути, чтобы они работали после смены директории (cd)
+          # Используем MAGISKBOOT из env
           BASE_DIR="$PWD"
-          MAGISKBOOT="$BASE_DIR/$TOOLS_DIR/magiskboot"
 
           # Подготовка
           echo "Preparing workspace..."
@@ -498,7 +489,7 @@ jobs:
 
           cp ${OUTPUT_DIR}/*.img -d ../
 
-          echo "---> Build finished successfully. <---"
+          echo "Build finished successfully."
 
       - name: Compress Image Files with Gzip
         run: |
@@ -529,20 +520,16 @@ jobs:
           overwrite: false
           include-hidden-files: false
 
-#      - name: Upload vendor_kernel_boot.img Artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: ${{ env.VENDOR_NAME }}
-#          path: vendor_kernel_boot_*.img.gz
-#          if-no-files-found: warn
-#          compression-level: 6
-#          overwrite: false
-#          include-hidden-files: false
+      - name: Upload vendor_kernel_boot.img Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.VENDOR_NAME }}
+          path: vendor_kernel_boot_*.img.gz
+          if-no-files-found: warn
+          compression-level: 6
+          overwrite: false
+          include-hidden-files: false
 
-#      - name: Start VS Code if fail build
-#        if: failure()      
-#        uses: fawazahmed0/action-debug-vscode@main
-#        with:
-#          port: 8080
-#          folder: ${{ github.workspace }}
-#          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start VS Code if fail build
+        if: failure()
+        uses: fawazahmed0/action-debug-vscode@main

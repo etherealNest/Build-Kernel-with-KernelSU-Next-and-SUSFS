@@ -35,11 +35,14 @@ jobs:
 
           # Извлекаем boot.img и vendor_kernel_boot.img
           mkdir -p extracted_imgs
-          unzip -o stock_ota.zip 'boot.img' 'vendor_kernel_boot.img' -d extracted_imgs
+          unzip -o "stock_ota.zip" '*.zip' -d firmware
+          INNER_ZIP=$(find firmware -type f -name '*.zip' | head -n1)
+          unzip -o "$INNER_ZIP" 'boot.img' 'vendor_kernel_boot.img' -d extracted_imgs
+          
           echo "Images extracted: boot.img and vendor_kernel_boot.img"
 
       - name: Upload Images as Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: stock-images
           path: extracted_imgs
