@@ -11,7 +11,7 @@ on:
         type: string
       susfs:
         required: true
-        type: string
+        type: boolean
       pixel-source-branch:
         required: true
         type: string
@@ -23,7 +23,8 @@ on:
         type: string
       next_debug:
         required: false
-        type: string
+        type: boolean
+        default: false
       
 permissions:
   contents: write
@@ -48,6 +49,18 @@ jobs:
       - name: Make magiskboot executable
         run: chmod +x ${{ env.MAGISKBOOT }}
 
+      - name: Debug print inputs
+        run: |
+          echo "ksu_type='${{ inputs.ksu_type }}'"
+          echo "susfs='${{ inputs.susfs }}'"
+          echo "hooks_type='${{ inputs.hooks_type }}'"
+          echo "next_debug='${{ inputs.next_debug }}'"
+          if [ "${{ inputs.next_debug }}" = "true" ]; then
+            echo "Next debug mode ENABLED"
+          else
+            echo "Next debug mode DISABLED"
+          fi
+
       - name: Install Build Dependencies
         run: sudo apt-get update && sudo apt-get install -y wget unzip jq libelf-dev libssl-dev build-essential lz4
 
@@ -65,7 +78,7 @@ jobs:
           git clone https://github.com/etherealNest/AnyKernel3 -b "${{ inputs.device }}"
           git clone https://github.com/etherealNest/kernel_patches.git
 
-          if [ "${{ inputs.susfs }}" == "true" ]; then
+          if [ "${{ inputs.susfs }}" = "true" ]; then
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
           fi
 
@@ -149,7 +162,7 @@ jobs:
           fi
 
       - name: Apply SUSFS Patches
-        if: ${{ inputs.susfs == 'true' }}
+        if: ${{ inputs.susfs }}
         working-directory: kernel_source/aosp
         run: |          
           echo "Applying SUSFS patches..."
@@ -319,7 +332,7 @@ jobs:
           echo "CONFIG_IP_SET_HASH_NETPORT=y" >> "${DEFCONFIG_PATH}"
           echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> "${DEFCONFIG_PATH}"
 
-          if [ "${{ inputs.susfs }}" == "true" ]; then
+          if [ "${{ inputs.susfs }}" = "true" ]; then
             # SUSFS Configuration
             echo "CONFIG_KSU_SUSFS=y" >> "${DEFCONFIG_PATH}"
             echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "${DEFCONFIG_PATH}"
@@ -411,7 +424,7 @@ jobs:
       - name: Create ZIP Files for Different Formats
         working-directory: AnyKernel3
         run: |
-          SUSFS_STAT="${{ inputs.susfs == 'true' && '_SUSFS-v1.5.9' || '' }}"
+          SUSFS_STAT="${{ inputs.susfs && '_SUSFS-v1.5.9' || '' }}"
           echo "SUSFS_STAT=$SUSFS_STAT" >> $GITHUB_ENV
 
           ZIP_NAME="AK3_${KERNEL_VER}_${{ inputs.device }}_${{ inputs.ksu_type }}-v${KSUVER}${SUSFS_STAT}_${{ inputs.hooks_type }}.zip"

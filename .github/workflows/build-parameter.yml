@@ -97,7 +97,7 @@ jobs:
       pixel-source-branch: 'android-gs-shusky-6.1-android16'
       aosp-spoofing: 'android14-6.1-2025-05_r8'
       hooks_type: ${{ matrix.hooks_type }}
-      next_debug: 'false'
+      next_debug: false
 
   create-release:
     name: Create Release
