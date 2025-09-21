@@ -374,10 +374,6 @@ jobs:
           # Добавляем конфиги в defconfig устройства.
           echo "Adding configuration settings to defconfig..."
 
-          # KernelSU Core Configuration
-          echo "CONFIG_KSU=y" >> "${DEFCONFIG_PATH}"
-          echo "# CONFIG_KSU_SUSFS_SUS_SU is not set" >> "${DEFCONFIG_PATH}"
-
           echo "Integration KernelSU"
           # KernelSU Core Configuration
           echo "CONFIG_KSU=y" >> "${DEFCONFIG_PATH}"
