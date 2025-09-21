@@ -557,30 +557,18 @@ jobs:
         with:
           name: ${{ env.ZIP_NAME }}
           path: AK3*.zip
-          if-no-files-found: warn
-          compression-level: 6
-          overwrite: false
-          include-hidden-files: false
 
       - name: Upload boot.img Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BOOT_NAME }}
           path: boot_*.img.gz
-          if-no-files-found: warn
-          compression-level: 6
-          overwrite: false
-          include-hidden-files: false
 
       - name: Upload vendor_kernel_boot.img Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.VENDOR_NAME }}
           path: vendor_kernel_boot_*.img.gz
-          if-no-files-found: warn
-          compression-level: 6
-          overwrite: false
-          include-hidden-files: false
 
       - name: Start VS Code if fail build
         if: failure()
