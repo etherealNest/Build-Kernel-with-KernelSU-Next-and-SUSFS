@@ -388,7 +388,7 @@ jobs:
           echo "CONFIG_KPROBE_EVENTS=y" >> "${DEFCONFIG_PATH}"
 
           # Enable KPM
-          echp "CONFIG_KPM=y" >> "${DEFCONFIG_PATH}"
+          echo "CONFIG_KPM=y" >> "${DEFCONFIG_PATH}"
           echo "CONFIG_KALLSYMS=y" >> "${DEFCONFIG_PATH}"
           echo "CONFIG_KALLSYMS_ALL=y" >> "${DEFCONFIG_PATH}"
 
