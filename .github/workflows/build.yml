@@ -372,7 +372,7 @@ jobs:
           KSU_MAKEFILE="./KernelSU/kernel/Makefile"
           SRC_TREE="." # В контексте этого шага, корень исходников - текущая директория
 
-          if [ (sha256sum "$KSU_MAKEFILE") != "63568996ecc9189b24ee5ed5e85c9bf52e88bea9f7fa9e30494a1f7d947e0c84  Makefile" ]; then
+          if [ "$(sha256sum "$KSU_MAKEFILE")" != "63568996ecc9189b24ee5ed5e85c9bf52e88bea9f7fa9e30494a1f7d947e0c84  Makefile" ]; then
             echo "Makefile был изменён, дальнейшие действия могут быть некорректны."
           else 
             echo "Makefile в ожидаемом состоянии, продолжаем."
