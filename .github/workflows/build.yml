@@ -416,6 +416,15 @@ jobs:
             cat "$KSU_MAKEFILE"
           done
 
+      - name: Force Legacy Throne Tracker
+        working-directory: kernel_source/aosp/KernelSU/kernel
+        run: |
+          set -e
+          echo "INFO: Forcing legacy throne tracker to bypass vfs_getattr incompatibility."
+          # throne_tracker_legacy.c является частью исходного кода SukiSU
+          cp -f throne_tracker_legacy.c throne_tracker.c
+          echo "INFO: Replaced throne_tracker.c with legacy implementation."
+
       - name: Add Configuration Settings SukiSU
         if: ${{ inputs.ksu_type == 'suki-su' }}
         working-directory: kernel_source/aosp
@@ -430,7 +439,7 @@ jobs:
           echo "CONFIG_KSU=y" >> "${DEFCONFIG_PATH}"
           echo "# CONFIG_KSU_DEBUG is not set" >> "${DEFCONFIG_PATH}"
           echo "# CONFIG_KSU_MULTI_MANAGER_SUPPORT is not set" >> "${DEFCONFIG_PATH}"   
-          echo "CONFIG_KSU_THRONE_TRACKER_LEGACY=y" >> "${DEFCONFIG_PATH}"       
+          echo "# CONFIG_KSU_THRONE_TRACKER_LEGACY is not set" >> "${DEFCONFIG_PATH}"       
 
           # KProbes
           echo "CONFIG_KSU_KPROBES_HOOK=y" >> "${DEFCONFIG_PATH}"
