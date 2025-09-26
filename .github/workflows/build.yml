@@ -411,7 +411,7 @@ jobs:
           echo "INFO: Injecting computed flags into $KSU_MAKEFILE"
           for flag in "${FLAG_LIST[@]}"; do
             echo "ccflags-y += $flag" >> "$KSU_MAKEFILE"
-            echo "  Added: $flag
+            echo "  Added: $flag"
             echo "CAT"
             cat "$KSU_MAKEFILE"
           done
