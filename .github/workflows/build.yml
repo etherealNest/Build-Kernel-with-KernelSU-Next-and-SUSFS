@@ -365,6 +365,71 @@ jobs:
           # Удаление проверки defconfig
           sed -i 's/check_defconfig//' ./build.config.gki
 
+      - name: Pre-compute and Inject Kernel Compatibility Flags
+        working-directory: kernel_source/aosp
+        run: |
+          set -e
+          KSU_MAKEFILE="./KernelSU/kernel/Makefile"
+          SRC_TREE="." # В данном контексте srctree это текущая директория
+
+          echo "INFO: Analyzing kernel source for compatibility flags..."
+
+          FLAG_LIST=()
+
+          # SELinux drivers check
+          if grep -q "current_sid(void)" "$SRC_TREE/security/selinux/include/objsec.h"; then
+            FLAG_LIST+=("-DKSU_COMPAT_HAS_CURRENT_SID")
+          fi
+          if grep -q "struct selinux_state " "$SRC_TREE/security/selinux/include/security.h"; then
+            FLAG_LIST+=("-DKSU_COMPAT_HAS_SELINUX_STATE")
+          fi
+
+          # Handle optional backports
+          if grep -q "ssize_t kernel_read" "$SRC_TREE/fs/read_write.c"; then
+            FLAG_LIST+=("-DKSU_OPTIONAL_KERNEL_READ")
+          fi
+          if grep "ssize_t kernel_write" "$SRC_TREE/fs/read_write.c" | grep -q "const void"; then
+            FLAG_LIST+=("-DKSU_OPTIONAL_KERNEL_WRITE")
+          fi
+          if grep -q "inode_security_struct\s\+\*selinux_inode" "$SRC_TREE/security/selinux/include/objsec.h"; then
+            FLAG_LIST+=("-DKSU_OPTIONAL_SELINUX_INODE")
+          fi
+          if grep -q "int\s\+path_umount" "$SRC_TREE/fs/namespace.c"; then
+            FLAG_LIST+=("-DKSU_HAS_PATH_UMOUNT")
+          fi
+
+          # Checks Samsung UH drivers
+          if grep -q "CONFIG_KDP_CRED" "$SRC_TREE/kernel/cred.c"; then
+            FLAG_LIST+=("-DSAMSUNG_UH_DRIVER_EXIST")
+          fi
+
+          # Samsung SELinux Porting
+          if grep -q "SEC_SELINUX_PORTING_COMMON" "$SRC_TREE/security/selinux/avc.c"; then
+            FLAG_LIST+=("-DSAMSUNG_SELINUX_PORTING")
+          fi
+
+          # Check new vfs_getattr()
+          if grep -A1 "^int vfs_getattr" "$SRC_TREE/fs/stat.c" | grep -q "query_flags"; then
+            FLAG_LIST+=("-DKSU_HAS_NEW_VFS_GETATTR")
+          fi
+
+          # Function proc_ops check
+          if grep -q "struct proc_ops " "$SRC_TREE/include/linux/proc_fs.h"; then
+            FLAG_LIST+=("-DKSU_COMPAT_HAS_PROC_OPS")
+          fi
+          
+          echo "INFO: Injecting flags into $KSU_MAKEFILE"
+          for flag in "${FLAG_LIST[@]}"; do
+            echo "ccflags-y += $flag" >> "$KSU_MAKEFILE"
+            echo "  Added: $flag"
+          done
+
+          echo "INFO: Final Makefile flags section:"
+          tail -n 20 "$KSU_MAKEFILE"
+
+          echo "All Makefile"
+          cat "$KSU_MAKEFILE"
+
       - name: Add Configuration Settings SukiSU
         if: ${{ inputs.ksu_type == 'suki-su' }}
         working-directory: kernel_source/aosp
