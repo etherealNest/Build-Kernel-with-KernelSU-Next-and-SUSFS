@@ -426,8 +426,6 @@ jobs:
           for flag in "${FLAG_LIST[@]}"; do
             echo "ccflags-y += $flag" >> "$KSU_MAKEFILE"
             echo "  Added: $flag"
-            echo "CAT"
-            cat "$KSU_MAKEFILE"
           done
 
       - name: Add Configuration Settings SukiSU
