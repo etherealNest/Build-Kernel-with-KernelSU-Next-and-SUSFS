@@ -98,6 +98,9 @@ jobs:
           KERNEL_DIR="kernel_source"
           MANIFEST_URL="https://android.googlesource.com/kernel/manifest"
 
+          echo "Disk space before kernel source sync:"
+          df -h
+
           rm -rf "$KERNEL_DIR"
           mkdir -p "$KERNEL_DIR"
           cd "$KERNEL_DIR"
