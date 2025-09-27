@@ -441,7 +441,7 @@ jobs:
           echo "CONFIG_KSU=y" >> "${DEFCONFIG_PATH}"
           echo "# CONFIG_KSU_DEBUG is not set" >> "${DEFCONFIG_PATH}"
           echo "# CONFIG_KSU_MULTI_MANAGER_SUPPORT is not set" >> "${DEFCONFIG_PATH}"   
-          echo "CONFIG_KSU_THRONE_TRACKER_LEGACY=y" >> "${DEFCONFIG_PATH}"       
+          echo "# CONFIG_KSU_THRONE_TRACKER_LEGACY is not set" >> "${DEFCONFIG_PATH}"       
 
           # KProbes
           echo "CONFIG_KSU_KPROBES_HOOK=y" >> "${DEFCONFIG_PATH}"
